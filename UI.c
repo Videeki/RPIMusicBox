@@ -1,6 +1,3 @@
-//compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0`
-
-
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +42,8 @@ static void turnOFF(GtkWidget *widget, gpointer data)
   deinitPIN(LED);
 }
 
-static void activate(GtkApplication *app, gpointer user_data)
+
+static void activate (GtkApplication *app, gpointer user_data)
 {
   GtkWidget *window;
   GtkWidget *grid;
@@ -62,18 +60,16 @@ static void activate(GtkApplication *app, gpointer user_data)
   /* Pack the container in the window */
   gtk_container_add(GTK_CONTAINER(window), grid);
 
-  button = gtk_button_new_with_label("Turn ON");
-  //g_signal_connect(button, "clicked", G_CALLBACK(turnON), NULL);
-  g_signal_connect (button, "clicked", G_CALLBACK (print_hello), NULL);
+  button = gtk_button_new_with_label("TurnON");
+  g_signal_connect(button, "clicked", G_CALLBACK(turnON), NULL);
 
   /* Place the first button in the grid cell (0, 0), and make it fill
    * just 1 cell horizontally and vertically (ie no spanning)
    */
   gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
 
-  button = gtk_button_new_with_label("Turn OFF");
-  //g_signal_connect(button, "clicked", G_CALLBACK(turnOFF), NULL);
-  g_signal_connect (button, "clicked", G_CALLBACK (print_hello), NULL);
+  button = gtk_button_new_with_label("TurnOFF");
+  g_signal_connect(button, "clicked", G_CALLBACK(turnOFF), NULL);
 
   /* Place the second button in the grid cell (1, 0), and make it fill
    * just 1 cell horizontally and vertically (ie no spanning)
@@ -102,7 +98,7 @@ int main(int argc, char **argv)
   GtkApplication *app;
   int status;
 
-  app = gtk_application_new("MusicBox", G_APPLICATION_FLAGS_NONE);
+  app = gtk_application_new("org.gtk.MusicBox", G_APPLICATION_FLAGS_NONE);
   g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
   status = g_application_run(G_APPLICATION(app), argc, argv);
   g_object_unref(app);
