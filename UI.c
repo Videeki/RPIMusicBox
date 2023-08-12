@@ -1,23 +1,31 @@
-#include <gtk/gtk.h>
+// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -lmpg123 -lao
+
+
+// Standard library
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <time.h>
+
+// UI
+#include <gtk/gtk.h>
+
+// Sound
+#include <ao/ao.h>
+#include <mpg123.h>
 
 #define ON 1
 #define OFF 0
+#define BITS 8
 
 int initPIN(int pinNr);
 int setupPIN(int pinNr, char *mode);
 int writePIN(int pinNr, int value);
 int readPIN(int pinNr);
 int deinitPIN(int pinNr);
+int playMusic(char *argv);
 
-static void print_hello(GtkWidget *widget, gpointer data)
-{
-  g_print("Hello World\n");
-}
+GtkTextBuffer *buffer;
 
 static void turnON(GtkWidget *widget, gpointer data)
 {
@@ -42,68 +50,57 @@ static void turnOFF(GtkWidget *widget, gpointer data)
   deinitPIN(LED);
 }
 
-
-static void activate (GtkApplication *app, gpointer user_data)
+static void play(GtkWidget *widget, gpointer data)
 {
-  GtkWidget *window;
-  GtkWidget *grid;
-  GtkWidget *button;
-
-  /* create a new window, and set its title */
-  window = gtk_application_window_new(app);
-  gtk_window_set_title(GTK_WINDOW(window), "Window");
-  gtk_container_set_border_width(GTK_CONTAINER(window), 10);
-
-  /* Here we construct the container that is going pack our buttons */
-  grid = gtk_grid_new();
-
-  /* Pack the container in the window */
-  gtk_container_add(GTK_CONTAINER(window), grid);
-
-  button = gtk_button_new_with_label("TurnON");
-  g_signal_connect(button, "clicked", G_CALLBACK(turnON), NULL);
-
-  /* Place the first button in the grid cell (0, 0), and make it fill
-   * just 1 cell horizontally and vertically (ie no spanning)
-   */
-  gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
-
-  button = gtk_button_new_with_label("TurnOFF");
-  g_signal_connect(button, "clicked", G_CALLBACK(turnOFF), NULL);
-
-  /* Place the second button in the grid cell (1, 0), and make it fill
-   * just 1 cell horizontally and vertically (ie no spanning)
-   */
-  gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
-
-  button = gtk_button_new_with_label("Quit");
-  g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_widget_destroy), window);
-
-  /* Place the Quit button in the grid cell (0, 1), and make it
-   * span 2 columns.
-   */
-  gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
-
-  /* Now that we are done packing our widgets, we show them all
-   * in one go, by calling gtk_widget_show_all() on the window.
-   * This call recursively calls gtk_widget_show() on all widgets
-   * that are contained in the window, directly or indirectly.
-   */
-  gtk_widget_show_all(window);
-
+  //buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+  //playMusic("/media/videeki/Adatok/Zene/Vegyes/004_fluor_filigran_gecigranat.mp3");
+  printf("%s\n", *buffer);
+  playMusic(buffer);
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-  GtkApplication *app;
-  int status;
+  GtkBuilder *builder;
+  GObject *window;
+  GObject *button;
+  GObject *textView;
+  
+  GError *error = NULL;
 
-  app = gtk_application_new("org.gtk.MusicBox", G_APPLICATION_FLAGS_NONE);
-  g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-  status = g_application_run(G_APPLICATION(app), argc, argv);
-  g_object_unref(app);
+  gtk_init(&argc, &argv);
 
-  return status;
+  /* Construct a GtkBuilder instance and load our UI description */
+  builder = gtk_builder_new ();
+  if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
+    {
+      g_printerr ("Error loading file: %s\n", error->message);
+      g_clear_error (&error);
+      return 1;
+    }
+
+  /* Connect signal handlers to the constructed widgets. */
+  window = gtk_builder_get_object (builder, "window");
+  g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+
+  textView = gtk_builder_get_object(builder, "txtPath");
+  g_object_set_data(G_OBJECT(window), "txtPath", textView);
+  buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+
+  button = gtk_builder_get_object (builder, "btnTurnON");
+  g_signal_connect(button, "clicked", G_CALLBACK(turnON), NULL);
+
+  button = gtk_builder_get_object (builder, "btnTurnOFF");
+  g_signal_connect(button, "clicked", G_CALLBACK(turnOFF), NULL);
+
+  button = gtk_builder_get_object (builder, "btnPlayMusic");
+  g_signal_connect(button, "clicked", G_CALLBACK(play), NULL);
+
+  button = gtk_builder_get_object (builder, "quit");
+  g_signal_connect(button, "clicked", G_CALLBACK(gtk_main_quit), NULL);
+
+  gtk_main ();
+
+  return 0;
 }
 
 int initPIN(int pinNr)
@@ -196,6 +193,56 @@ int deinitPIN(int pinNr)
 
     fprintf(unexport, "%d", pinNr);
     fclose(unexport);
+
+    return 0;
+}
+
+int playMusic(char *argv)
+{
+    mpg123_handle *mh;
+    unsigned char *buffer;
+    size_t buffer_size;
+    size_t done;
+    int err;
+
+    int driver;
+    ao_device *dev;
+
+    ao_sample_format format;
+    int channels, encoding;
+    long rate;
+
+    /* initializations */
+    ao_initialize();
+    driver = ao_default_driver_id();
+    mpg123_init();
+    mh = mpg123_new(NULL, &err);
+    buffer_size = mpg123_outblock(mh);
+    buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+
+    /* open the file and get the decoding format */
+    mpg123_open(mh, argv);
+    mpg123_getformat(mh, &rate, &channels, &encoding);
+
+    /* set the output format and open the output device */
+    format.bits = mpg123_encsize(encoding) * BITS;
+    format.rate = rate;
+    format.channels = channels;
+    format.byte_format = AO_FMT_NATIVE;
+    format.matrix = 0;
+    dev = ao_open_live(driver, &format, NULL);
+
+    /* decode and play */
+    while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK)
+        ao_play(dev, buffer, done);
+
+    /* clean up */
+    free(buffer);
+    ao_close(dev);
+    mpg123_close(mh);
+    mpg123_delete(mh);
+    mpg123_exit();
+    ao_shutdown();
 
     return 0;
 }
