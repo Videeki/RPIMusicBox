@@ -54,8 +54,8 @@ static void play(GtkWidget *widget, gpointer data)
 {
   //buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
   //playMusic("/media/videeki/Adatok/Zene/Vegyes/004_fluor_filigran_gecigranat.mp3");
-  printf("%s\n", *buffer);
-  playMusic(buffer);
+  //printf("%s\n", *buffer);
+  playMusic(gtk_text_buffer_get_text(buffer));
 }
 
 int main(int argc, char *argv[])
