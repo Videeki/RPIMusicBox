@@ -1,65 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.40.0 -->
 <interface>
-  <object id="window" class="GtkWindow">
+  <requires lib="gtk+" version="3.0"/>
+  <object class="GtkTreeStore" id="tsSongs">
+    <columns>
+      <!-- column-name title -->
+      <column type="gchararray"/>
+      <!-- column-name path -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkWindow" id="window">
     <property name="visible">True</property>
-    <property name="title">Grid</property>
+    <property name="can-focus">False</property>
     <property name="border-width">10</property>
+    <property name="title">Grid</property>
     <child>
-      <object id="grid" class="GtkGrid">
+      <!-- n-columns=4 n-rows=8 -->
+      <object class="GtkGrid" id="grid">
         <property name="visible">True</property>
+        <property name="can-focus">False</property>
         <child>
-          <object id="txtPath" class="GtkTextView">
+          <object class="GtkButton" id="btnTurnON">
+            <property name="label">Turn ON</property>
             <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="receives-default">False</property>
+          </object>
+          <packing>
+            <property name="left-attach">3</property>
+            <property name="top-attach">6</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="btnTurnOFF">
+            <property name="label">Turn OFF</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="receives-default">False</property>
+          </object>
+          <packing>
+            <property name="left-attach">3</property>
+            <property name="top-attach">7</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="btnAddMusic">
+            <property name="label">Add Music</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="receives-default">False</property>
+          </object>
+          <packing>
+            <property name="left-attach">3</property>
+            <property name="top-attach">5</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="btnSongUP">
+            <property name="label">Song UP</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="receives-default">False</property>
+          </object>
+          <packing>
+            <property name="left-attach">3</property>
+            <property name="top-attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="btnFolderUP">
+            <property name="label" translatable="yes">Folder UP</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="left-attach">3</property>
+            <property name="top-attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="btnFolderDOWN">
+            <property name="label" translatable="yes">Folder DOWN</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="left-attach">3</property>
+            <property name="top-attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="btnSongDOWN">
+            <property name="label" translatable="yes">Song DOWN</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="left-attach">3</property>
+            <property name="top-attach">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkViewport" id="songsVP">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <child>
+              <object class="GtkTreeView" id="tvwSongs">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <child internal-child="selection">
+                  <object class="GtkTreeSelection" id="selectSong"/>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="tvwcTitle">
+                    <property name="title" translatable="yes">Title</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="song_00"/>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="song_01"/>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="song_02"/>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="song_03"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="tvwcPath">
+                    <property name="title" translatable="yes">Path</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="path_00"/>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="path_01"/>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="path_02"/>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="path_03"/>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left-attach">0</property>
+            <property name="top-attach">1</property>
+            <property name="width">3</property>
+            <property name="height">7</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entryPath">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
           </object>
           <packing>
             <property name="left-attach">0</property>
             <property name="top-attach">0</property>
-            <property name="width">3</property>
-          </packing>
-        </child>
-        <child>
-          <object id="btnTurnON" class="GtkButton">
-            <property name="visible">True</property>
-            <property name="label">Turn ON</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object id="btnTurnOFF" class="GtkButton">
-            <property name="visible">True</property>
-            <property name="label">Turn OFF</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object id="btnPlayMusic" class="GtkButton">
-            <property name="visible">True</property>
-            <property name="label">Play Music</property>
-          </object>
-          <packing>
-            <property name="left-attach">2</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object id="quit" class="GtkButton">
-            <property name="visible">True</property>
-            <property name="label">Quit</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">2</property>
-            <property name="width">3</property>
+            <property name="width">4</property>
           </packing>
         </child>
       </object>
-      <packing>
-      </packing>
     </child>
   </object>
 </interface>

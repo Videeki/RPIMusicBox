@@ -25,7 +25,6 @@ int readPIN(int pinNr);
 int deinitPIN(int pinNr);
 int playMusic(char *argv);
 
-GtkTextBuffer *buffer;
 
 static void turnON(GtkWidget *widget, gpointer data)
 {
@@ -62,8 +61,14 @@ int main(int argc, char *argv[])
 {
   GtkBuilder *builder;
   GObject *window;
-  GObject *button;
-  GObject *textView;
+  GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic, *btnTurnON, *btnTurnOFF;
+  GObject *entryPath;
+  GtkTreeStore *tsSongs;
+  GtkTreeView *tvwSongs;
+  GtkTreeViewColumn *tvwcTitle, *tvwcPath;
+  GtkCellRender *song_00, *song_01, *song_02, *song_03;
+  GtkCellRender *path_00, *path_01, *path_02, *path_03;
+  GtkTreeSelection *selectSong;
   
   GError *error = NULL;
 
@@ -79,24 +84,69 @@ int main(int argc, char *argv[])
     }
 
   /* Connect signal handlers to the constructed widgets. */
-  window = gtk_builder_get_object (builder, "window");
-  g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+  window = gtk_builder_get_object(builder, "window");
+  g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-  textView = gtk_builder_get_object(builder, "txtPath");
-  g_object_set_data(G_OBJECT(window), "txtPath", textView);
-  buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+  entryPath = gtk_builder_get_object(builder, "entryPath");
+  g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
+  gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"Write the main Music folder");
+  // /media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3
 
-  button = gtk_builder_get_object (builder, "btnTurnON");
-  g_signal_connect(button, "clicked", G_CALLBACK(turnON), NULL);
+  tsSongs = GTK_TREE_STORE(gtk_builder_get_object(builder, "tsSongs"))
+  tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
+  tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
+  tvwcPath = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcPath"));
+  selectSong GTK_TREE_SELECTIO(gtk_builder_get_object(builder, "selectSong"));
 
-  button = gtk_builder_get_object (builder, "btnTurnOFF");
-  g_signal_connect(button, "clicked", G_CALLBACK(turnOFF), NULL);
+  gtk_tree_view_column_get_attribute(tvwcTitle, song_00, "text", 0);
+  gtk_tree_view_column_get_attribute(tvwcPath, path_00, "text", 1);
 
-  button = gtk_builder_get_object (builder, "btnPlayMusic");
-  g_signal_connect(button, "clicked", G_CALLBACK(play), NULL);
+  GktTreeIter iter, iterChild1, iterChild2;
 
-  button = gtk_builder_get_object (builder, "quit");
-  g_signal_connect(button, "clicked", G_CALLBACK(gtk_main_quit), NULL);
+  gtk_tree_store_append(tsSongs, &iter, NULL);
+  gtk_tree_store_set(tsSongs, &iter, 0, "row 1", -1);
+  gtk_tree_store_set(tsSongs, &iter, 1, "row 1 data", -1);
+
+  gtk_tree_store_append(tsSongs, &iterChild1, &iter);
+  gtk_tree_store_set(tsSongs, &iterChild1, 0, "row 1 child", -1);
+  gtk_tree_store_set(tsSongs, &iterChild1, 1, "row 1 child data", -1);
+
+  gtk_tree_store_append(tsSongs, &iter, NULL);
+  gtk_tree_store_set(tsSongs, &iter, 0, "row 2", -1);
+  gtk_tree_store_set(tsSongs, &iter, 1, "row 2 data", -1);
+
+  gtk_tree_store_append(tsSongs, &iterChild1, &iter);
+  gtk_tree_store_set(tsSongs, &iterChild1, 0, "row 2 child", -1);
+  gtk_tree_store_set(tsSongs, &iterChild1, 1, "row 2 child data", -1);
+
+  gtk_tree_store_append(tsSongs, &iterChild2, &iterChild1);
+  gtk_tree_store_set(tsSongs, &iterChild1, 0, "row 2 child of child", -1);
+  gtk_tree_store_set(tsSongs, &iterChild1, 1, "row 2 child of child data", -1);
+
+  selectSong = gtk_tree_view_get_selection(GTK_TREE_VIEW(tvwSongs));
+
+  btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
+  //g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(), NULL);
+  
+  btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
+  //g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(), NULL);
+
+  btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
+  //g_signal_connect(btnSongUP, "clicked", G_CALLBACK(), NULL);  
+
+  btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
+  //g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(), NULL);  
+
+
+  btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
+  g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(play), NULL);
+
+  btnTurnON = gtk_builder_get_object (builder, "btnTurnON");
+  g_signal_connect(btnTurnON, "clicked", G_CALLBACK(turnON), NULL);
+
+  btnTurnOFF = gtk_builder_get_object (builder, "btnTurnOFF");
+  g_signal_connect(btnTurnOFF, "clicked", G_CALLBACK(turnOFF), NULL);
+
 
   gtk_main ();
 
