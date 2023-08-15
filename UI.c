@@ -1,4 +1,4 @@
-// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -lmpg123 -lao
+// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -lmpg123 -lao -lpthread
 
 
 // Standard library
@@ -14,6 +14,9 @@
 #include <ao/ao.h>
 #include <mpg123.h>
 
+// Thread
+#include <pthread.h>
+
 #define ON 1
 #define OFF 0
 #define BITS 8
@@ -24,7 +27,9 @@ int writePIN(int pinNr, int value);
 int readPIN(int pinNr);
 int deinitPIN(int pinNr);
 int playMusic(char *argv);
+int readFile(char* argv);
 
+GObject *entryPath;
 
 static void turnON(GtkWidget *widget, gpointer data)
 {
@@ -52,22 +57,29 @@ static void turnOFF(GtkWidget *widget, gpointer data)
 static void play(GtkWidget *widget, gpointer data)
 {
   //buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
-  //playMusic("/media/videeki/Adatok/Zene/Vegyes/004_fluor_filigran_gecigranat.mp3");
-  //printf("%s\n", *buffer);
-  playMusic(gtk_text_buffer_get_text(buffer));
+  const char *input = gtk_entry_get_text(GTK_ENTRY(entryPath));
+  pthread_t tid;
+  pthread_create(&tid, NULL, playMusic, input);
+  
+  //playMusic("/media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3");
+  printf("%s\n", input);
+  //playMusic(input);
 }
 
 int main(int argc, char *argv[])
 {
+  readfile("config.ini");
+
   GtkBuilder *builder;
   GObject *window;
   GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic, *btnTurnON, *btnTurnOFF;
-  GObject *entryPath;
-  GtkTreeStore *tsSongs;
+  
+  GtkWidget *tv;
+  GtkListStore *lsSongs;
   GtkTreeView *tvwSongs;
   GtkTreeViewColumn *tvwcTitle, *tvwcPath;
-  GtkCellRender *song_00, *song_01, *song_02, *song_03;
-  GtkCellRender *path_00, *path_01, *path_02, *path_03;
+  GtkCellRenderer *song;
+  GtkCellRenderer *path;
   GtkTreeSelection *selectSong;
   
   GError *error = NULL;
@@ -92,38 +104,22 @@ int main(int argc, char *argv[])
   gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"Write the main Music folder");
   // /media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3
 
-  tsSongs = GTK_TREE_STORE(gtk_builder_get_object(builder, "tsSongs"))
+  int pos = 0;
+  lsSongs = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
+
+  gtk_list_store_insert_with_values(lsSongs, NULL, pos++, 0, "Song 1", 1, "Path 1", -1);
+  gtk_list_store_insert_with_values(lsSongs, NULL, pos++, 0, "Song 2", 1, "Path 2", -1);
+  gtk_list_store_insert_with_values(lsSongs, NULL, pos++, 0, "Song 3", 1, "Path 3", -1);
+
   tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
-  tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
-  tvwcPath = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcPath"));
-  selectSong GTK_TREE_SELECTIO(gtk_builder_get_object(builder, "selectSong"));
 
-  gtk_tree_view_column_get_attribute(tvwcTitle, song_00, "text", 0);
-  gtk_tree_view_column_get_attribute(tvwcPath, path_00, "text", 1);
+  tv = gtk_tree_view_new_with_model(GTK_TREE_MODEL(lsSongs));
 
-  GktTreeIter iter, iterChild1, iterChild2;
+  song = gtk_cell_renderer_text_new();
+  path = gtk_cell_renderer_text_new();
 
-  gtk_tree_store_append(tsSongs, &iter, NULL);
-  gtk_tree_store_set(tsSongs, &iter, 0, "row 1", -1);
-  gtk_tree_store_set(tsSongs, &iter, 1, "row 1 data", -1);
-
-  gtk_tree_store_append(tsSongs, &iterChild1, &iter);
-  gtk_tree_store_set(tsSongs, &iterChild1, 0, "row 1 child", -1);
-  gtk_tree_store_set(tsSongs, &iterChild1, 1, "row 1 child data", -1);
-
-  gtk_tree_store_append(tsSongs, &iter, NULL);
-  gtk_tree_store_set(tsSongs, &iter, 0, "row 2", -1);
-  gtk_tree_store_set(tsSongs, &iter, 1, "row 2 data", -1);
-
-  gtk_tree_store_append(tsSongs, &iterChild1, &iter);
-  gtk_tree_store_set(tsSongs, &iterChild1, 0, "row 2 child", -1);
-  gtk_tree_store_set(tsSongs, &iterChild1, 1, "row 2 child data", -1);
-
-  gtk_tree_store_append(tsSongs, &iterChild2, &iterChild1);
-  gtk_tree_store_set(tsSongs, &iterChild1, 0, "row 2 child of child", -1);
-  gtk_tree_store_set(tsSongs, &iterChild1, 1, "row 2 child of child data", -1);
-
-  selectSong = gtk_tree_view_get_selection(GTK_TREE_VIEW(tvwSongs));
+  gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (tv), -1, "Song", song, "text", 0, NULL);
+  gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (tv), -1, "Path", path, "text", 0, NULL);
 
   btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
   //g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(), NULL);
@@ -293,6 +289,40 @@ int playMusic(char *argv)
     mpg123_delete(mh);
     mpg123_exit();
     ao_shutdown();
+
+    return 0;
+}
+
+int readFile(char* argv)
+{
+    FILE *fp;
+    char *str;
+    long size;
+
+    fp = fopen(argv, "rb"); // read mode
+
+    if (fp == NULL) {
+        perror("Error while opening the file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fseek(fp, 0L, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
+
+    str = calloc(size + 1, sizeof(char));
+
+    if (str == NULL) {
+        fclose(fp);
+        perror("Memory allocation failed.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fread(str, size, 1, fp);
+    fclose(fp);
+
+    printf("%s", str);
+    free(str);
 
     return 0;
 }
