@@ -2,22 +2,16 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.0"/>
-  <object class="GtkTreeStore" id="tsSongs">
-    <columns>
-      <!-- column-name title -->
-      <column type="gchararray"/>
-      <!-- column-name path -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
   <object class="GtkWindow" id="window">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
     <property name="border-width">10</property>
     <property name="title">Grid</property>
     <child>
-      <!-- n-columns=4 n-rows=8 -->
+      <!-- n-columns=2 n-rows=9 -->
       <object class="GtkGrid" id="grid">
+        <property name="width-request">640</property>
+        <property name="height-request">480</property>
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
@@ -28,7 +22,7 @@
             <property name="receives-default">False</property>
           </object>
           <packing>
-            <property name="left-attach">3</property>
+            <property name="left-attach">1</property>
             <property name="top-attach">6</property>
           </packing>
         </child>
@@ -40,7 +34,7 @@
             <property name="receives-default">False</property>
           </object>
           <packing>
-            <property name="left-attach">3</property>
+            <property name="left-attach">1</property>
             <property name="top-attach">7</property>
           </packing>
         </child>
@@ -52,7 +46,7 @@
             <property name="receives-default">False</property>
           </object>
           <packing>
-            <property name="left-attach">3</property>
+            <property name="left-attach">1</property>
             <property name="top-attach">5</property>
           </packing>
         </child>
@@ -64,7 +58,7 @@
             <property name="receives-default">False</property>
           </object>
           <packing>
-            <property name="left-attach">3</property>
+            <property name="left-attach">1</property>
             <property name="top-attach">3</property>
           </packing>
         </child>
@@ -76,7 +70,7 @@
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="left-attach">3</property>
+            <property name="left-attach">1</property>
             <property name="top-attach">1</property>
           </packing>
         </child>
@@ -88,7 +82,7 @@
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="left-attach">3</property>
+            <property name="left-attach">1</property>
             <property name="top-attach">2</property>
           </packing>
         </child>
@@ -100,26 +94,41 @@
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="left-attach">3</property>
+            <property name="left-attach">1</property>
             <property name="top-attach">4</property>
           </packing>
         </child>
         <child>
-          <object class="GtkViewport" id="vpSongs">
+          <object class="GtkViewport" id="songsVP">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="shadow-type">etched-out</property>
             <child>
               <object class="GtkTreeView" id="tvwSongs">
+                <property name="width-request">640</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="enable-search">False</property>
+                <child internal-child="selection">
+                  <object class="GtkTreeSelection" id="selectSong"/>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="tvwcTitle">
+                    <property name="spacing">10</property>
+                    <property name="title" translatable="yes">Title</property>
+                    <property name="expand">True</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="rndrSong"/>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
           </object>
           <packing>
             <property name="left-attach">0</property>
             <property name="top-attach">1</property>
-            <property name="width">3</property>
-            <property name="height">7</property>
+            <property name="height">8</property>
           </packing>
         </child>
         <child>
@@ -130,8 +139,11 @@
           <packing>
             <property name="left-attach">0</property>
             <property name="top-attach">0</property>
-            <property name="width">4</property>
+            <property name="width">2</property>
           </packing>
+        </child>
+        <child>
+          <placeholder/>
         </child>
       </object>
     </child>

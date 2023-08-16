@@ -21,6 +21,8 @@
 #define OFF 0
 #define BITS 8
 
+enum {SONG_COLUMN, N_COLUMNS};
+
 int initPIN(int pinNr);
 int setupPIN(int pinNr, char *mode);
 int writePIN(int pinNr, int value);
@@ -28,6 +30,43 @@ int readPIN(int pinNr);
 int deinitPIN(int pinNr);
 int playMusic(char *argv);
 int readFile(char* argv);
+
+GtkListStore* populateList()
+{
+    GtkListStore* varListStore;
+    GtkTreeIter iter;
+    varListStore = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song00", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song01", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song02", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song03", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song04", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song05", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song06", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song07", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song08", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song09", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song10", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song11", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song12", -1);
+    gtk_list_store_append(varListStore, &iter);
+    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song13", -1);
+
+    return varListStore;
+}
 
 GObject *entryPath;
 
@@ -66,87 +105,111 @@ static void play(GtkWidget *widget, gpointer data)
   //playMusic(input);
 }
 
+
 int main(int argc, char *argv[])
 {
-  readfile("config.ini");
+    readFile("config.ini");
 
-  GtkBuilder *builder;
-  GObject *window;
-  GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic, *btnTurnON, *btnTurnOFF;
-  
-  GtkWidget *tv;
-  GtkListStore *lsSongs;
-  GtkTreeView *tvwSongs;
-  GtkTreeViewColumn *tvwcTitle, *tvwcPath;
-  GtkCellRenderer *song;
-  GtkCellRenderer *path;
-  GtkTreeSelection *selectSong;
-  
-  GError *error = NULL;
+    GtkBuilder *builder;
+    GObject *window;
+    GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic, *btnTurnON, *btnTurnOFF;
 
-  gtk_init(&argc, &argv);
+    GtkListStore *lsSongs;
+    
+    GtkTreeView *tvwSongs;
+    GtkTreeViewColumn *tvwcTitle;
+    GtkCellRenderer *rndrSong;
+    GtkTreeSelection *selectSong;
 
-  /* Construct a GtkBuilder instance and load our UI description */
-  builder = gtk_builder_new ();
-  if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
+    GError *error = NULL;
+
+    gtk_init(&argc, &argv);
+
+    /* Construct a GtkBuilder instance and load our UI description */
+    builder = gtk_builder_new ();
+    if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
     {
-      g_printerr ("Error loading file: %s\n", error->message);
-      g_clear_error (&error);
-      return 1;
+        g_printerr ("Error loading file: %s\n", error->message);
+        g_clear_error (&error);
+        return 1;
     }
 
-  /* Connect signal handlers to the constructed widgets. */
-  window = gtk_builder_get_object(builder, "window");
-  g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    /* Connect signal handlers to the constructed widgets. */
+    window = gtk_builder_get_object(builder, "window");
+    g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-  entryPath = gtk_builder_get_object(builder, "entryPath");
-  g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
-  gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"Write the main Music folder");
-  // /media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3
+    entryPath = gtk_builder_get_object(builder, "entryPath");
+    g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"02 Write the main Music folder");
+    // /media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3
 
-  int pos = 0;
-  lsSongs = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
+    //lsSongs = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
+    lsSongs = populateList();
+    //GtkTreeIter iter;
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song00", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song01", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song02", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song03", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song04", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song05", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song06", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song07", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song08", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song09", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song10", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song11", -1);
+    //gtk_list_store_append(lsSongs, &iter);
+    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song12", -1);
+    
+    tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
+    rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
+    tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
+    gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
 
-  gtk_list_store_insert_with_values(lsSongs, NULL, pos++, 0, "Song 1", 1, "Path 1", -1);
-  gtk_list_store_insert_with_values(lsSongs, NULL, pos++, 0, "Song 2", 1, "Path 2", -1);
-  gtk_list_store_insert_with_values(lsSongs, NULL, pos++, 0, "Song 3", 1, "Path 3", -1);
+    gtk_tree_view_set_model(GTK_TREE_VIEW(tvwSongs), GTK_TREE_MODEL(lsSongs));
 
-  tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
+    g_object_unref(lsSongs);
 
-  tv = gtk_tree_view_new_with_model(GTK_TREE_MODEL(lsSongs));
 
-  song = gtk_cell_renderer_text_new();
-  path = gtk_cell_renderer_text_new();
-
-  gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (tv), -1, "Song", song, "text", 0, NULL);
-  gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (tv), -1, "Path", path, "text", 0, NULL);
-
-  btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
-  //g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(), NULL);
+    btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
+    //g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(), NULL);
   
-  btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
-  //g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(), NULL);
+    btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
+    //g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(), NULL);
 
-  btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
-  //g_signal_connect(btnSongUP, "clicked", G_CALLBACK(), NULL);  
+    btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
+    //g_signal_connect(btnSongUP, "clicked", G_CALLBACK(), NULL);  
 
-  btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
-  //g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(), NULL);  
-
-
-  btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
-  g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(play), NULL);
-
-  btnTurnON = gtk_builder_get_object (builder, "btnTurnON");
-  g_signal_connect(btnTurnON, "clicked", G_CALLBACK(turnON), NULL);
-
-  btnTurnOFF = gtk_builder_get_object (builder, "btnTurnOFF");
-  g_signal_connect(btnTurnOFF, "clicked", G_CALLBACK(turnOFF), NULL);
+    btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
+    //g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(), NULL);  
 
 
-  gtk_main ();
+    btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
+    g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(play), NULL);
 
-  return 0;
+    btnTurnON = gtk_builder_get_object (builder, "btnTurnON");
+    g_signal_connect(btnTurnON, "clicked", G_CALLBACK(turnON), NULL);
+
+    btnTurnOFF = gtk_builder_get_object (builder, "btnTurnOFF");
+    g_signal_connect(btnTurnOFF, "clicked", G_CALLBACK(turnOFF), NULL);
+
+
+    gtk_main ();
+
+    return 0;
 }
 
 int initPIN(int pinNr)
