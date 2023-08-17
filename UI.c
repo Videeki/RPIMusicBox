@@ -17,6 +17,9 @@
 // Thread
 #include <pthread.h>
 
+// Folder structure
+#include <dirent.h>
+
 #define ON 1
 #define OFF 0
 #define BITS 8
@@ -31,40 +34,34 @@ int deinitPIN(int pinNr);
 int playMusic(char *argv);
 int readFile(char* argv);
 
-GtkListStore* populateList()
+GtkListStore* populateList(char* path)
 {
     GtkListStore* varListStore;
     GtkTreeIter iter;
-    varListStore = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song00", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song01", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song02", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song03", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song04", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song05", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song06", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song07", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song08", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song09", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song10", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song11", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song12", -1);
-    gtk_list_store_append(varListStore, &iter);
-    gtk_list_store_set(varListStore, &iter, SONG_COLUMN, "Song13", -1);
 
+    struct dirent *pDirent;
+    DIR *pDir;
+
+    varListStore = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
+
+    // Ensure we can open directory.
+    pDir = opendir (path);
+    if(pDir == NULL)
+    {
+        printf("Cannot open directory '%s'\n", path);
+    }
+    else
+    {
+        while ((pDirent = readdir(pDir)) != NULL)
+        {   
+            gtk_list_store_append(varListStore, &iter);
+            gtk_list_store_set(varListStore, &iter, SONG_COLUMN, pDirent->d_name, -1);
+        }
+    
+        closedir (pDir);
+
+    }
+    
     return varListStore;
 }
 
@@ -143,35 +140,7 @@ int main(int argc, char *argv[])
     gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"02 Write the main Music folder");
     // /media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3
 
-    //lsSongs = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
-    lsSongs = populateList();
-    //GtkTreeIter iter;
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song00", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song01", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song02", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song03", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song04", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song05", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song06", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song07", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song08", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song09", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song10", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song11", -1);
-    //gtk_list_store_append(lsSongs, &iter);
-    //gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, "Song12", -1);
+    lsSongs = populateList("/media/videeki/Adatok/Zene/Raptorz - Masodik harapas LP");
     
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
