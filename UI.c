@@ -24,6 +24,8 @@
 #define OFF 0
 #define BITS 8
 
+int currFolderIndex = 0;
+char** folderNames;
 enum {SONG_COLUMN, N_COLUMNS};
 
 int initPIN(int pinNr);
@@ -33,6 +35,10 @@ int readPIN(int pinNr);
 int deinitPIN(int pinNr);
 int playMusic(char *argv);
 int readFile(char* argv);
+int countFolders(char* path);
+int getFolders(char* path);
+
+GObject *entryPath;
 
 GtkListStore* populateList(char* path)
 {
@@ -41,6 +47,8 @@ GtkListStore* populateList(char* path)
 
     struct dirent *pDirent;
     DIR *pDir;
+
+    //rewinddir(pDir);
 
     varListStore = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
 
@@ -54,18 +62,20 @@ GtkListStore* populateList(char* path)
     {
         while ((pDirent = readdir(pDir)) != NULL)
         {   
-            gtk_list_store_append(varListStore, &iter);
-            gtk_list_store_set(varListStore, &iter, SONG_COLUMN, pDirent->d_name, -1);
+            if(strstr(pDirent->d_name, ".mp3"))
+            {
+                gtk_list_store_append(varListStore, &iter);
+                gtk_list_store_set(varListStore, &iter, SONG_COLUMN, pDirent->d_name, -1);
+            }
         }
-    
-        closedir (pDir);
 
+        rewinddir(pDir);
+        
+        closedir (pDir);
     }
     
     return varListStore;
 }
-
-GObject *entryPath;
 
 static void turnON(GtkWidget *widget, gpointer data)
 {
@@ -138,9 +148,24 @@ int main(int argc, char *argv[])
     entryPath = gtk_builder_get_object(builder, "entryPath");
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
     gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"02 Write the main Music folder");
-    // /media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3
 
-    lsSongs = populateList("/media/videeki/Adatok/Zene/Raptorz - Masodik harapas LP");
+
+    char* mainFolder = "/media/videeki/Adatok/Zene/";
+    int nrOfFolders = countFolders(mainFolder);
+    printf("Number of folders: %d\n", nrOfFolders);
+    
+    getFolders(mainFolder);
+
+    char initFolder[255];
+    strcpy(initFolder, mainFolder);
+
+    strcat(initFolder, folderNames[currFolderIndex]);
+    printf("Selected folder name: %s\n", folderNames[currFolderIndex]);
+    puts(initFolder);
+
+    lsSongs = populateList("/media/videeki/Adatok/Zene/Vegyes");
+    //lsSongs = populateList(mainFolder);
+    //lsSongs = populateList(initFolder);
     
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
@@ -353,8 +378,79 @@ int readFile(char* argv)
     fread(str, size, 1, fp);
     fclose(fp);
 
-    printf("%s", str);
+    printf("%s\n", str);
     free(str);
 
     return 0;
+}
+
+int countFolders(char* path)
+{
+    struct dirent *pDirent;
+    DIR *pDir;
+    int count = 0;
+    // Ensure we can open directory.
+
+    pDir = opendir (path);
+    if (pDir == NULL) {
+        printf ("Cannot open directory '%s'\n", path);
+        return -1;
+    }
+
+    // Process each entry.
+
+    while ((pDirent = readdir(pDir)) != NULL)
+    {
+        count++;
+    }
+
+    rewinddir(pDir);
+
+    closedir (pDir);
+    
+    return count;
+}
+
+int getFolders(char* path)
+{
+    struct dirent *pDirent;
+    DIR *pDir;
+
+    //rewinddir(pDir);
+
+    pDir = opendir (path);
+    if (pDir == NULL)
+    {
+        printf ("Cannot open directory '%s'\n", path);
+        return 1;
+    }
+
+    int i = 0;
+    // Process each entry.
+    while ((pDirent = readdir(pDir)) != NULL)
+    {
+        i++;
+    }
+    
+    rewinddir(pDir);
+    
+    folderNames = calloc(i, sizeof(char *));  
+
+    for(int j = 0; j < i; j++)
+    {
+        pDirent = readdir(pDir);
+        char dirName[255];
+        
+        strcpy(dirName, pDirent->d_name);
+        int foundDot = strcspn(dirName, ".");
+        if(foundDot == strlen(dirName) && foundDot != 1)
+        {
+            folderNames[j] = calloc(1, sizeof(char *)*strlen(dirName));
+            strcpy(folderNames[j], dirName);
+        }
+        
+    }
+
+    closedir (pDir);
+    return i;
 }
