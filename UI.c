@@ -434,7 +434,7 @@ int getFolders(char* path)
     
     rewinddir(pDir);
     
-    folderNames = calloc(i, sizeof(char *));  
+    folderNames = (char*)calloc(i, sizeof(char *));  
 
     for(int j = 0; j < i; j++)
     {
@@ -445,7 +445,7 @@ int getFolders(char* path)
         int foundDot = strcspn(dirName, ".");
         if(foundDot == strlen(dirName) && foundDot != 1)
         {
-            folderNames[j] = calloc(1, sizeof(char *)*strlen(dirName));
+            folderNames[j] = (char*)calloc(1, sizeof(char *)*strlen(dirName));
             strcpy(folderNames[j], dirName);
         }
         
