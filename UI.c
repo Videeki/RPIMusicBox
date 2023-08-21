@@ -158,14 +158,9 @@ int main(int argc, char *argv[])
 
     char initFolder[255];
     strcpy(initFolder, mainFolder);
-
     strcat(initFolder, folderNames[currFolderIndex]);
-    printf("Selected folder name: %s\n", folderNames[currFolderIndex]);
-    puts(initFolder);
 
-    lsSongs = populateList("/media/videeki/Adatok/Zene/Vegyes");
-    //lsSongs = populateList(mainFolder);
-    //lsSongs = populateList(initFolder);
+    lsSongs = populateList(initFolder);
     
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
@@ -434,23 +429,21 @@ int getFolders(char* path)
     
     rewinddir(pDir);
     
-    folderNames = (char*)calloc(i, sizeof(char *));  
-
-    for(int j = 0; j < i; j++)
-    {
-        pDirent = readdir(pDir);
-        char dirName[255];
-        
+    folderNames = (char**)malloc(i * sizeof(char*));  
+    int j = 0;
+    char dirName[255];
+    while ((pDirent = readdir(pDir)) != NULL)
+    {   
         strcpy(dirName, pDirent->d_name);
         int foundDot = strcspn(dirName, ".");
         if(foundDot == strlen(dirName) && foundDot != 1)
         {
-            folderNames[j] = (char*)calloc(1, sizeof(char *)*strlen(dirName));
+            folderNames[j] = (char*)malloc(strlen(dirName) * sizeof(char*));
             strcpy(folderNames[j], dirName);
+            j++;
         }
-        
     }
-
+    
     closedir (pDir);
     return i;
 }
