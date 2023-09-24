@@ -35,7 +35,7 @@ GtkTreeView *tvwSongs;
 GtkTreeViewColumn *tvwcTitle;
 GtkCellRenderer *rndrSong;
 GtkTreeSelection *songSelection;
-GtkTreeIter iter;
+GtkTreeIter iter, nulliter;
 
 int currFolderIndex = 0;
 char** folderNames;
@@ -84,10 +84,11 @@ int populateList(char* path)
         
         closedir (pDir);
 
-        gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
-        gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
-
         gtk_tree_view_set_model(GTK_TREE_VIEW(tvwSongs), GTK_TREE_MODEL(lsSongs));
+
+
+        gtk_tree_model_get_iter_first(GTK_TREE_MODEL(lsSongs), &nulliter);
+        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &nulliter);
 
         g_object_unref(lsSongs);
     }
@@ -177,6 +178,10 @@ int main(int argc, char *argv[])
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
     tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
+    gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
+    songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
+
 
     strcpy(mainFolder, "/media/videeki/Adatok/Zene/");
     getFolders(mainFolder);
