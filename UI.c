@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
 
     /* Construct a GtkBuilder instance and load our UI description */
     builder = gtk_builder_new ();
-    if (gtk_builder_add_from_file (builder, "GridMusicBox.ui", &error) == 0)
+    if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
     {
         g_printerr ("Error loading file: %s\n", error->message);
         g_clear_error (&error);
