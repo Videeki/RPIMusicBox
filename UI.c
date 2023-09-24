@@ -34,7 +34,7 @@ GtkListStore *lsSongs;
 GtkTreeView *tvwSongs;
 GtkTreeViewColumn *tvwcTitle;
 GtkCellRenderer *rndrSong;
-GtkTreeSelection *selectSong;
+GtkTreeSelection *songSelection;
 GtkTreeIter iter;
 
 int currFolderIndex = 0;
@@ -84,9 +84,6 @@ int populateList(char* path)
         
         closedir (pDir);
 
-        tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
-        rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
-        tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
         gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
         gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
 
@@ -162,7 +159,7 @@ int main(int argc, char *argv[])
 
     /* Construct a GtkBuilder instance and load our UI description */
     builder = gtk_builder_new ();
-    if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
+    if (gtk_builder_add_from_file (builder, "GridMusicBox.ui", &error) == 0)
     {
         g_printerr ("Error loading file: %s\n", error->message);
         g_clear_error (&error);
@@ -177,6 +174,9 @@ int main(int argc, char *argv[])
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
     gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"02 Write the main Music folder");
 
+    tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
+    rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
+    tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
 
     strcpy(mainFolder, "/media/videeki/Adatok/Zene/");
     getFolders(mainFolder);

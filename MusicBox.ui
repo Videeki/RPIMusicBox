@@ -103,27 +103,45 @@
           </packing>
         </child>
         <child>
+          <object class="GtkEntry" id="entryPath">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="left-attach">0</property>
+            <property name="top-attach">0</property>
+            <property name="width">2</property>
+          </packing>
+        </child>
+        <child>
           <object class="GtkViewport" id="songsVP">
             <property name="width-request">640</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="shadow-type">etched-out</property>
             <child>
-              <object class="GtkTreeView" id="tvwSongs">
-                <property name="width-request">640</property>
+              <object class="GtkScrolledWindow" id="songSW">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="enable-search">False</property>
-                <child internal-child="selection">
-                  <object class="GtkTreeSelection" id="selectSong"/>
-                </child>
+                <property name="shadow-type">in</property>
                 <child>
-                  <object class="GtkTreeViewColumn" id="tvwcTitle">
-                    <property name="spacing">10</property>
-                    <property name="title" translatable="yes">Title</property>
-                    <property name="expand">True</property>
+                  <object class="GtkTreeView" id="tvwSongs">
+                    <property name="width-request">640</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="enable-search">False</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection" id="songSelection"/>
+                    </child>
                     <child>
-                      <object class="GtkCellRendererText" id="rndrSong"/>
+                      <object class="GtkTreeViewColumn" id="tvwcTitle">
+                        <property name="spacing">10</property>
+                        <property name="title" translatable="yes">Title</property>
+                        <property name="expand">True</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="rndrSong"/>
+                        </child>
+                      </object>
                     </child>
                   </object>
                 </child>
@@ -134,17 +152,6 @@
             <property name="left-attach">0</property>
             <property name="top-attach">1</property>
             <property name="height">8</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="entryPath">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-          </object>
-          <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">0</property>
-            <property name="width">2</property>
           </packing>
         </child>
         <child>
