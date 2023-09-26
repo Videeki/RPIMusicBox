@@ -37,7 +37,10 @@ GtkCellRenderer *rndrSong;
 GtkTreeSelection *songSelection;
 GtkTreeIter iter, nulliter;
 
+GtkTreeIter actIter[255];
+
 int currFolderIndex = 0;
+int currSongIndex = 0;
 char** folderNames;
 char mainFolder[255];
 char initFolder[255];
@@ -61,6 +64,8 @@ int populateList(char* path)
 
     //rewinddir(pDir);
 
+    g_object_unref(lsSongs);
+
     lsSongs = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
 
     // Ensure we can open directory.
@@ -70,13 +75,16 @@ int populateList(char* path)
         printf("Cannot open directory '%s'\n", path);
     }
     else
-    {
+    {   
+        int i = 0;
         while ((pDirent = readdir(pDir)) != NULL)
         {   
             if(strstr(pDirent->d_name, ".mp3"))
             {
                 gtk_list_store_append(lsSongs, &iter);
                 gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, pDirent->d_name, -1);
+                actIter[i] = iter;
+                i++;
             }
         }
 
@@ -87,10 +95,10 @@ int populateList(char* path)
         gtk_tree_view_set_model(GTK_TREE_VIEW(tvwSongs), GTK_TREE_MODEL(lsSongs));
 
 
-        gtk_tree_model_get_iter_first(GTK_TREE_MODEL(lsSongs), &nulliter);
-        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &nulliter);
+        //gtk_tree_model_get_iter_first(GTK_TREE_MODEL(lsSongs), &nulliter);
+        currSongIndex = 0;
+        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
 
-        g_object_unref(lsSongs);
     }
     
     return 0;
@@ -112,6 +120,32 @@ static void stepFolderPrevious(GtkWidget *widget, gpointer data)
     strcat(initFolder, folderNames[currFolderIndex]);
 
     populateList(initFolder);
+}
+
+static void stepSoundNext(GtkWidget *widget, gpointer data)
+{   
+    currSongIndex++;
+    gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+    gchar *value;
+    gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+    
+    gtk_entry_set_text(entryPath, value);
+}
+
+static void stepSoundPrevious(GtkWidget *widget, gpointer data)
+{   
+    currSongIndex--;
+    if(currSongIndex < 0)
+    {
+        currSongIndex = 0;
+    }
+    gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+    gchar *value;
+    gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+    
+    gtk_entry_set_text(entryPath, value);
 }
 
 static void turnON(GtkWidget *widget, gpointer data)
@@ -139,14 +173,29 @@ static void turnOFF(GtkWidget *widget, gpointer data)
 
 static void play(GtkWidget *widget, gpointer data)
 {
-  //buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
-  const char *input = gtk_entry_get_text(GTK_ENTRY(entryPath));
-  pthread_t tid;
-  pthread_create(&tid, NULL, playMusic, input);
-  
-  //playMusic("/media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3");
-  printf("%s\n", input);
-  //playMusic(input);
+    //buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+    const char *input = gtk_entry_get_text(GTK_ENTRY(entryPath));
+    char temp[255];
+    char* musicPath;
+
+    printf("The initFolder value is: %s\n", initFolder);
+
+    strcpy(temp, initFolder);
+    strcat(temp, "/");
+    strcat(temp, input);
+
+    strcpy(musicPath, temp);
+
+    printf("Playing the following music: %s\n", musicPath);
+
+    pthread_t tid;
+    pthread_create(&tid, NULL, playMusic, musicPath);
+    //pthread_create(&tid, NULL, playMusic, "/media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3");
+
+
+    //playMusic("/media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3");
+    //printf("%s\n", input);
+    //playMusic(input);
 }
 
 
@@ -173,7 +222,7 @@ int main(int argc, char *argv[])
 
     entryPath = gtk_builder_get_object(builder, "entryPath");
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"02 Write the main Music folder");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"03.2.4 Write the main Music folder");
 
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
@@ -198,10 +247,10 @@ int main(int argc, char *argv[])
     g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(stepFolderPrevious), NULL);
 
     btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
-    //g_signal_connect(btnSongUP, "clicked", G_CALLBACK(), NULL);  
+    g_signal_connect(btnSongUP, "clicked", G_CALLBACK(stepSoundPrevious), NULL);  
 
     btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
-    //g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(), NULL);  
+    g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(stepSoundNext), NULL);  
 
 
     btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
