@@ -44,6 +44,7 @@ int currSongIndex = 0;
 char** folderNames;
 char mainFolder[255];
 char initFolder[255];
+char title[255];
 enum {SONG_COLUMN, N_COLUMNS};
 
 int initPIN(int pinNr);
@@ -173,29 +174,13 @@ static void turnOFF(GtkWidget *widget, gpointer data)
 
 static void play(GtkWidget *widget, gpointer data)
 {
-    //buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
-    const char *input = gtk_entry_get_text(GTK_ENTRY(entryPath));
-    char temp[255];
-    char* musicPath;
-
-    printf("The initFolder value is: %s\n", initFolder);
-
-    strcpy(temp, initFolder);
-    strcat(temp, "/");
-    strcat(temp, input);
-
-    strcpy(musicPath, temp);
-
-    printf("Playing the following music: %s\n", musicPath);
+   const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
+    strcpy(title, initFolder);
+    strcat(title, "/");
+    strcat(title, input);
 
     pthread_t tid;
-    pthread_create(&tid, NULL, playMusic, musicPath);
-    //pthread_create(&tid, NULL, playMusic, "/media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3");
-
-
-    //playMusic("/media/videeki/Adatok/Zene/Vegyes/02_hirado.mp3");
-    //printf("%s\n", input);
-    //playMusic(input);
+    pthread_create(&tid, NULL, playMusic, title);
 }
 
 
@@ -222,7 +207,7 @@ int main(int argc, char *argv[])
 
     entryPath = gtk_builder_get_object(builder, "entryPath");
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"03.2.4 Write the main Music folder");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"03.2.24 Write the main Music folder");
 
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
@@ -364,6 +349,8 @@ int deinitPIN(int pinNr)
 
 int playMusic(char *argv)
 {
+    printf("%s: %d\n", argv, strlen(argv));
+
     mpg123_handle *mh;
     unsigned char *buffer;
     size_t buffer_size;
