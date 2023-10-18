@@ -10,19 +10,23 @@
 // UI
 #include <gtk/gtk.h>
 
-// Sound
-#include <ao/ao.h>
-#include <mpg123.h>
-
 // Thread
 #include <pthread.h>
 
 // Folder structure
 #include <dirent.h>
 
+// Queue
+#include "Queue.h"
+
+// Sound
+#include "PlayMusic.h"
+
 #define ON 1
 #define OFF 0
 #define BITS 8
+#define QUEUE_SIZE 255
+#define PATH_LENGTH 255
 
 GtkBuilder *builder;
 GObject *window;
@@ -41,22 +45,114 @@ GtkTreeIter actIter[255];
 
 int currFolderIndex = 0;
 int currSongIndex = 0;
+
 char** folderNames;
-char mainFolder[255];
-char initFolder[255];
-char title[255];
+char mainFolder[PATH_LENGTH];
+char initFolder[PATH_LENGTH];
+char title[PATH_LENGTH];
 enum {SONG_COLUMN, N_COLUMNS};
+
+string_Queue_t playlist;
+int run = 1;
+
+int populateList(char* path);
+
+static void stepFolderNext(GtkWidget *widget, gpointer data);
+static void stepFolderPrevious(GtkWidget *widget, gpointer data);
+static void stepSoundNext(GtkWidget *widget, gpointer data);
+static void stepSoundPrevious(GtkWidget *widget, gpointer data);
+static void addMusic2Playlist(GtkWidget *widget, gpointer data);
+
+static void turnON(GtkWidget *widget, gpointer data);
+static void turnOFF(GtkWidget *widget, gpointer data);
+
+static void musicPlayer();
 
 int initPIN(int pinNr);
 int setupPIN(int pinNr, char *mode);
 int writePIN(int pinNr, int value);
 int readPIN(int pinNr);
 int deinitPIN(int pinNr);
-int playMusic(char *argv);
+
 int readFile(char* argv);
 int countFolders(char* path);
 int getFolders(char* path);
 
+
+
+int main(int argc, char *argv[])
+{
+    //readFile("config.ini");
+    pthread_t tid;
+    obtain(&playlist, "MusicQueue", 100);
+    GError *error = NULL;
+
+    gtk_init(&argc, &argv);
+
+    /* Construct a GtkBuilder instance and load our UI description */
+    builder = gtk_builder_new ();
+    if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
+    {
+        g_printerr ("Error loading file: %s\n", error->message);
+        g_clear_error (&error);
+        return 1;
+    }
+
+    /* Connect signal handlers to the constructed widgets. */
+    window = gtk_builder_get_object(builder, "window");
+    g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+    entryPath = gtk_builder_get_object(builder, "entryPath");
+    g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"4.1.0 Write the main Music folder");
+
+    tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
+    rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
+    tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
+    gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
+    songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
+
+
+    strcpy(mainFolder, "/media/videeki/Adatok/Zene/");
+    getFolders(mainFolder);
+
+    strcpy(initFolder, mainFolder);
+    strcat(initFolder, folderNames[currFolderIndex]);
+    populateList(initFolder);
+    
+
+    btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
+    g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(stepFolderNext), NULL);
+  
+    btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
+    g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(stepFolderPrevious), NULL);
+
+    btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
+    g_signal_connect(btnSongUP, "clicked", G_CALLBACK(stepSoundPrevious), NULL);  
+
+    btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
+    g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(stepSoundNext), NULL);  
+
+
+    btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
+    g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(addMusic2Playlist), NULL);
+
+    btnTurnON = gtk_builder_get_object (builder, "btnTurnON");
+    g_signal_connect(btnTurnON, "clicked", G_CALLBACK(turnON), NULL);
+
+    btnTurnOFF = gtk_builder_get_object (builder, "btnTurnOFF");
+    g_signal_connect(btnTurnOFF, "clicked", G_CALLBACK(turnOFF), NULL);
+
+
+    pthread_create(&tid, NULL, musicPlayer, NULL);
+
+    gtk_main ();
+
+    flush(&playlist);
+
+    return 0;
+}
 
 int populateList(char* path)
 {
@@ -99,6 +195,11 @@ int populateList(char* path)
         //gtk_tree_model_get_iter_first(GTK_TREE_MODEL(lsSongs), &nulliter);
         currSongIndex = 0;
         gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+        gchar *value;
+        gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+
+        gtk_entry_set_text(entryPath, value);
 
     }
     
@@ -149,6 +250,15 @@ static void stepSoundPrevious(GtkWidget *widget, gpointer data)
     gtk_entry_set_text(entryPath, value);
 }
 
+static void addMusic2Playlist(GtkWidget *widget, gpointer data)
+{
+    const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
+    strcpy(title, initFolder);
+    strcat(title, "/");
+    strcat(title, input);
+    enqueue(&playlist, title);
+}
+
 static void turnON(GtkWidget *widget, gpointer data)
 {
   int LED = 23;
@@ -172,85 +282,26 @@ static void turnOFF(GtkWidget *widget, gpointer data)
   deinitPIN(LED);
 }
 
-static void play(GtkWidget *widget, gpointer data)
+static void musicPlayer()
 {
-   const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
-    strcpy(title, initFolder);
-    strcat(title, "/");
-    strcat(title, input);
-
-    pthread_t tid;
-    pthread_create(&tid, NULL, playMusic, title);
-}
-
-
-int main(int argc, char *argv[])
-{
-    readFile("config.ini");
-
-    GError *error = NULL;
-
-    gtk_init(&argc, &argv);
-
-    /* Construct a GtkBuilder instance and load our UI description */
-    builder = gtk_builder_new ();
-    if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
-    {
-        g_printerr ("Error loading file: %s\n", error->message);
-        g_clear_error (&error);
-        return 1;
-    }
-
-    /* Connect signal handlers to the constructed widgets. */
-    window = gtk_builder_get_object(builder, "window");
-    g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-
-    entryPath = gtk_builder_get_object(builder, "entryPath");
-    g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"03.2.24 Write the main Music folder");
-
-    tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
-    rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
-    tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
-    gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
-    songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
-
-
-    strcpy(mainFolder, "/media/videeki/Adatok/Zene/");
-    getFolders(mainFolder);
-
-    strcpy(initFolder, mainFolder);
-    strcat(initFolder, folderNames[currFolderIndex]);
-    populateList(initFolder);
+    //puts("Music initialization");
+    initMusic();
     
-
-    btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
-    g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(stepFolderNext), NULL);
-  
-    btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
-    g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(stepFolderPrevious), NULL);
-
-    btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
-    g_signal_connect(btnSongUP, "clicked", G_CALLBACK(stepSoundPrevious), NULL);  
-
-    btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
-    g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(stepSoundNext), NULL);  
-
-
-    btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
-    g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(play), NULL);
-
-    btnTurnON = gtk_builder_get_object (builder, "btnTurnON");
-    g_signal_connect(btnTurnON, "clicked", G_CALLBACK(turnON), NULL);
-
-    btnTurnOFF = gtk_builder_get_object (builder, "btnTurnOFF");
-    g_signal_connect(btnTurnOFF, "clicked", G_CALLBACK(turnOFF), NULL);
-
-
-    gtk_main ();
-
-    return 0;
+    while(run)
+    {
+        if(nrOfElements(&playlist) == 0)
+        {
+            sleep(1);
+        }
+        else
+        {   
+            playMusic(dequeue(&playlist));
+        }
+        
+    }
+    
+    //puts("Music closed");
+    closeMusic();
 }
 
 int initPIN(int pinNr)
@@ -343,58 +394,6 @@ int deinitPIN(int pinNr)
 
     fprintf(unexport, "%d", pinNr);
     fclose(unexport);
-
-    return 0;
-}
-
-int playMusic(char *argv)
-{
-    printf("%s: %d\n", argv, strlen(argv));
-
-    mpg123_handle *mh;
-    unsigned char *buffer;
-    size_t buffer_size;
-    size_t done;
-    int err;
-
-    int driver;
-    ao_device *dev;
-
-    ao_sample_format format;
-    int channels, encoding;
-    long rate;
-
-    /* initializations */
-    ao_initialize();
-    driver = ao_default_driver_id();
-    mpg123_init();
-    mh = mpg123_new(NULL, &err);
-    buffer_size = mpg123_outblock(mh);
-    buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
-
-    /* open the file and get the decoding format */
-    mpg123_open(mh, argv);
-    mpg123_getformat(mh, &rate, &channels, &encoding);
-
-    /* set the output format and open the output device */
-    format.bits = mpg123_encsize(encoding) * BITS;
-    format.rate = rate;
-    format.channels = channels;
-    format.byte_format = AO_FMT_NATIVE;
-    format.matrix = 0;
-    dev = ao_open_live(driver, &format, NULL);
-
-    /* decode and play */
-    while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK)
-        ao_play(dev, buffer, done);
-
-    /* clean up */
-    free(buffer);
-    ao_close(dev);
-    mpg123_close(mh);
-    mpg123_delete(mh);
-    mpg123_exit();
-    ao_shutdown();
 
     return 0;
 }
