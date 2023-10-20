@@ -22,6 +22,9 @@
 // Sound
 #include "PlayMusic.h"
 
+// GPIO
+#include "GPIOHandler.h"
+
 #define ON 1
 #define OFF 0
 #define BITS 8
@@ -68,14 +71,8 @@ static void turnOFF(GtkWidget *widget, gpointer data);
 
 static void musicPlayer();
 
-int initPIN(int pinNr);
-int setupPIN(int pinNr, char *mode);
-int writePIN(int pinNr, int value);
-int readPIN(int pinNr);
-int deinitPIN(int pinNr);
 
 int readFile(char* argv);
-int countFolders(char* path);
 int getFolders(char* path);
 
 
@@ -304,100 +301,6 @@ static void musicPlayer()
     closeMusic();
 }
 
-int initPIN(int pinNr)
-{
-    char initPin[33];
-    FILE *export;
-    export = fopen("/sys/class/gpio/export", "w");
-
-    if (export == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(export, "%d", pinNr);
-    fclose(export);
-
-    sleep(1);
-
-    return 0;
-}
-
-int setupPIN(int pinNr, char *mode)
-{
-    
-    char setupPin[50];
-    FILE *direction;
-    sprintf(setupPin, "/sys/class/gpio/gpio%d/direction", pinNr);
-    direction = fopen(setupPin, "w");
-
-    if (direction == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(direction, "%s", mode);
-    fclose(direction);
-       
-    return 0;
-}
-
-int writePIN(int pinNr, int value)
-{
-    char pinPath[50];
-    FILE *writePin;
-    sprintf(pinPath, "/sys/class/gpio/gpio%d/value", pinNr);
-    writePin = fopen(pinPath, "w");
-
-    if (writePin == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(writePin, "%d", value);
-    fclose(writePin);
-    
-    return 0;
-}
-
-int readPIN(int pinNr)
-{
-    int value;
-    char pinPath[50];
-    FILE *readPin;
-    sprintf(pinPath, "/sys/class/gpio/gpio%d/value", pinNr);
-    
-    readPin = fopen(pinPath, "r");
-    
-    if (readPin == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fscanf(readPin, "%d", &value);
-    
-    fclose(readPin);
-   
-    return value;
-}
-
-int deinitPIN(int pinNr)
-{
-    char deinitPin[35];
-    FILE *unexport;
-    unexport = fopen("/sys/class/gpio/unexport", "w");
-
-    if (unexport == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(unexport, "%d", pinNr);
-    fclose(unexport);
-
-    return 0;
-}
-
 int readFile(char* argv)
 {
     FILE *fp;
@@ -430,33 +333,6 @@ int readFile(char* argv)
     free(str);
 
     return 0;
-}
-
-int countFolders(char* path)
-{
-    struct dirent *pDirent;
-    DIR *pDir;
-    int count = 0;
-    // Ensure we can open directory.
-
-    pDir = opendir (path);
-    if (pDir == NULL) {
-        printf ("Cannot open directory '%s'\n", path);
-        return -1;
-    }
-
-    // Process each entry.
-
-    while ((pDirent = readdir(pDir)) != NULL)
-    {
-        count++;
-    }
-
-    rewinddir(pDir);
-
-    closedir (pDir);
-    
-    return count;
 }
 
 int getFolders(char* path)
