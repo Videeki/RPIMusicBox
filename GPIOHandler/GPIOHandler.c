@@ -1,10 +1,4 @@
 // Compiling: gcc GPIOHandler.c -o Builds/GPIOHandler
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <time.h>
-
 #include "GPIOHandler.h"
 
 int initPIN(int pinNr)
@@ -13,7 +7,6 @@ int initPIN(int pinNr)
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__
-
     char initPin[33];
     FILE *export;
     export = fopen("/sys/class/gpio/export", "w");
@@ -39,7 +32,6 @@ int setupPIN(int pinNr, char *mode)
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__
-
     char setupPin[50];
     FILE *direction;
     sprintf(setupPin, "/sys/class/gpio/gpio%d/direction", pinNr);
@@ -64,7 +56,6 @@ int writePIN(int pinNr, int value)
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__
-
     char pinPath[50];
     FILE *writePin;
     sprintf(pinPath, "/sys/class/gpio/gpio%d/value", pinNr);
@@ -85,14 +76,11 @@ int writePIN(int pinNr, int value)
 
 int readPIN(int pinNr)
 {
-
-    
     #ifdef _WIN32
     int value;
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__
-
     int value;
     char pinPath[50];
     FILE *readPin;
@@ -120,7 +108,6 @@ int deinitPIN(int pinNr)
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__
-
     char deinitPin[35];
     FILE *unexport;
     unexport = fopen("/sys/class/gpio/unexport", "w");
@@ -132,6 +119,170 @@ int deinitPIN(int pinNr)
 
     fprintf(unexport, "%d", pinNr);
     fclose(unexport);
+
+    #endif
+
+    return 0;
+}
+
+int initGPIO(struct gpiohandle_request* rq, int pins[], int nrOfPins, int direction)
+{
+    #ifdef _WIN32
+    int ret = 0;
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    int fd, ret, i;
+    // open the device
+    fd = open(DEV_NAME, O_RDONLY);
+    if (fd < 0)
+    {
+        printf("Unabled to open %s: %s", DEV_NAME, strerror(errno));
+        return fd;
+    }
+    
+    for(i = 0; i < nrOfPins; i++)
+    {
+        rq->lineoffsets[i] = pins[i];
+    }
+
+    (direction == INPUT) ? (rq->flags = GPIOHANDLE_REQUEST_INPUT) : (rq->flags = GPIOHANDLE_REQUEST_OUTPUT);
+    rq->lines = nrOfPins;
+    ret = ioctl(fd, GPIO_GET_LINEHANDLE_IOCTL, rq);
+    close(fd);
+
+    if (ret == -1)
+    {
+        printf("Unable to get line handle from ioctl : %s", strerror(errno));
+        return ret;
+    }
+
+    #endif
+
+    return ret;
+}
+
+int writeGPIO(struct gpiohandle_request* rq, int* values)
+{
+    #ifdef _WIN32
+    int ret = 0;
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    struct gpiohandle_data data;
+    int ret, i;
+
+    for(i = 0; i < rq->lines; i++)
+    {
+        data.values[i] = values[i];
+    }
+
+    ret = ioctl(rq->fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, &data);
+    if (ret == -1)
+    {
+        printf("Unable to set line value using ioctl : %%s", strerror(errno));
+        return ret;
+    }
+    else
+    {
+         usleep(2000000);
+    }
+    
+    #endif
+
+    return ret;
+}
+
+int readGPIO(struct gpiohandle_request* rq, int* values)
+{
+    #ifdef _WIN32
+    int ret = 0;
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    struct gpiohandle_data data;
+    int nrOfPins = rq->lines;
+    
+    int ret, i;
+
+    ret = ioctl(rq->fd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, &data);
+    if (ret == -1)
+    {
+        printf("Unable to get line value using ioctl : %s", strerror(errno));
+        return ret;
+    }
+    else
+    {
+        for(i = 0; i < nrOfPins; i++)
+        {
+            values[i] = data.values[i];
+        }
+    }
+
+    #endif
+
+    return ret;
+}
+
+int pollGPIO(int offset)
+{
+    #ifdef _WIN32
+    int ret = 0;
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    struct gpioevent_request gpioevent_rq;
+    struct pollfd pfd;
+    int fd, ret;
+
+    fd = open(DEV_NAME, O_RDONLY);
+    if (fd < 0)
+    {
+        printf("Unabled to open %s: %s\n", DEV_NAME, strerror(errno));
+        return fd;
+    }
+
+    gpioevent_rq.lineoffset = offset;
+    gpioevent_rq.handleflags = GPIOHANDLE_REQUEST_INPUT;
+    gpioevent_rq.eventflags = GPIOEVENT_EVENT_RISING_EDGE;
+    ret = ioctl(fd, GPIO_GET_LINEEVENT_IOCTL, &gpioevent_rq);
+    close(fd);
+    if (ret == -1)
+    {
+        printf("Unable to get line event from ioctl : %s\n", strerror(errno));
+        return ret;
+    }
+    
+    pfd.fd = gpioevent_rq.fd;
+    pfd.events = POLLIN;
+    ret = poll(&pfd, 1, -1);
+    if (ret == -1)
+    {
+        printf("Error while polling event from GPIO: %s\n", strerror(errno));
+    }
+    else if (pfd.revents & POLLIN)
+    {
+        printf("Rising edge event on GPIO offset: %d, of %s\n", offset, DEV_NAME);
+    }
+    else
+    {
+        printf("Polling On: %d, of %s\n", offset, DEV_NAME);     
+    }
+        
+    close(gpioevent_rq.fd);
+
+    #endif
+
+    return ret;
+}
+
+int closeGPIO(struct gpiohandle_request* rq)
+{
+    #ifdef _WIN32
+    printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    close(rq->fd);
 
     #endif
 

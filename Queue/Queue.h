@@ -2,8 +2,13 @@
 #define QUEUE_H
 
 #define QUEUE_VERSION_MAJOR   0
-#define QUEUE_VERSION_MINOR   1
+#define QUEUE_VERSION_MINOR   2
 #define QUEUE_VERSION_FIX     0
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 
 typedef struct
 {

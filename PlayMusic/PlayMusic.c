@@ -8,39 +8,23 @@
 /*   Compiling -> Windows: gcc PlayMusic.c -o PlayMusic.exe -lwinmm                              */
 /*                                                                                               */
 /*************************************************************************************************/
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "PlayMusic.h"
 
-#ifdef _WIN32
-	#include <windows.h>
-    #include <mmsystem.h>
 
-#elif __linux__
-	#include <ao/ao.h>
-    #include <mpg123.h>
-    #define BITS 8
+#ifdef __linux__
+mpg123_handle *mh;
+unsigned char *buffer;
+size_t buffer_size;
+size_t done;
+int err;
 
-    mpg123_handle *mh;
-    unsigned char *buffer;
-    size_t buffer_size;
-    size_t done;
-    int err;
+int driver;
+ao_device *dev;
 
-    int driver;
-    ao_device *dev;
-
-    ao_sample_format format;
-    int channels, encoding;
-    long rate;
-#else
-    printf("Sorry, the system are not implemented yet... :'(\n")
-
+ao_sample_format format;
+int channels, encoding;
+long rate;
 #endif
-
 
 int initMusic()
 {

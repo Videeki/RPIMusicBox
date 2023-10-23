@@ -1,4 +1,4 @@
-// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -lmpg123 -lao -lpthread
+// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -IGPIOHandler "./GPIOHandler/GPIOHandler.c" -IQueue "./Queue/Queue.c" -IPlayMusic "./PlayMusic/PlayMusic.c" -lmpg123 -lao -lpthread
 
 
 // Standard library
@@ -71,16 +71,21 @@ static void turnOFF(GtkWidget *widget, gpointer data);
 
 static void musicPlayer();
 
+static void addMusicGPIO();
+static void nextFolderGPIO();
+static void previousFolderGPIO();
+static void nextSongGPIO();
+static void previousSongGPIO();
 
 int readFile(char* argv);
 int getFolders(char* path);
 
-
+static void addMusic2PlaylistGPIO();
 
 int main(int argc, char *argv[])
 {
     //readFile("config.ini");
-    pthread_t tid;
+    pthread_t musicTID, addMusicTID, nextFolderTID, previousFolderTID, nextSongTID, previousSongTID;
     obtain(&playlist, "MusicQueue", 100);
     GError *error = NULL;
 
@@ -142,7 +147,13 @@ int main(int argc, char *argv[])
     g_signal_connect(btnTurnOFF, "clicked", G_CALLBACK(turnOFF), NULL);
 
 
-    pthread_create(&tid, NULL, musicPlayer, NULL);
+    pthread_create(&musicTID, NULL, musicPlayer, NULL);
+    pthread_create(&addMusicTID, NULL, addMusicGPIO, NULL);
+    pthread_create(&nextFolderTID, NULL, nextFolderGPIO, NULL);
+    pthread_create(&previousFolderTID, NULL, previousFolderGPIO, NULL);
+    pthread_create(&nextSongTID, NULL, nextSongGPIO, NULL);
+    pthread_create(&previousSongTID, NULL, previousSongGPIO, NULL);
+
 
     gtk_main ();
 
@@ -256,6 +267,15 @@ static void addMusic2Playlist(GtkWidget *widget, gpointer data)
     enqueue(&playlist, title);
 }
 
+static void addMusic2PlaylistGPIO()
+{
+    const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
+    strcpy(title, initFolder);
+    strcat(title, "/");
+    strcat(title, input);
+    enqueue(&playlist, title);
+}
+
 static void turnON(GtkWidget *widget, gpointer data)
 {
   int LED = 23;
@@ -299,6 +319,114 @@ static void musicPlayer()
     
     //puts("Music closed");
     closeMusic();
+}
+
+static void addMusicGPIO()
+{
+    int pinNr = 23;
+    //initPIN(pinNr);
+    //setupPIN(pinNr, "IN");
+    while(run)
+    {
+        if(pollGPIO(pinNr))
+        //if(readPIN(pinNr))
+        {
+            const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
+            strcpy(title, initFolder);
+            strcat(title, "/");
+            strcat(title, input);
+            enqueue(&playlist, title);
+        }
+    }
+    //deinitPIN(pinNr);
+}
+
+static void nextFolderGPIO()
+{
+    int pinNr = 24;
+    //initPIN(pinNr);
+    //setupPIN(pinNr, "IN");
+    while(run)
+    {
+        if(pollGPIO(pinNr))
+        //if(readPIN(pinNr))
+        {
+            currFolderIndex++;
+            strcpy(initFolder, mainFolder);
+            strcat(initFolder, folderNames[currFolderIndex]);
+
+            populateList(initFolder);
+        }
+    }
+    //deinitPIN(pinNr);
+}
+
+static void previousFolderGPIO()
+{
+    int pinNr = 25;
+    //initPIN(pinNr);
+    //setupPIN(pinNr, "IN");
+    while(run)
+    {
+        if(pollGPIO(pinNr))
+        //if(readPIN(pinNr))
+        {
+            currFolderIndex--;
+            strcpy(initFolder, mainFolder);
+            strcat(initFolder, folderNames[currFolderIndex]);
+
+            populateList(initFolder);
+        }
+    }
+    //deinitPIN(pinNr);
+}
+
+static void nextSongGPIO()
+{
+    int pinNr = 26;
+    //initPIN(pinNr);
+    //setupPIN(pinNr, "IN");
+    while(run)
+    {
+        if(pollGPIO(pinNr))
+        //if(readPIN(pinNr))
+        {
+            currSongIndex++;
+            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+            gchar *value;
+            gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+    
+            gtk_entry_set_text(entryPath, value);
+        }
+    }
+    //deinitPIN(pinNr);
+}
+
+static void previousSongGPIO()
+{
+    int pinNr = 27;
+    //initPIN(pinNr);
+    //setupPIN(pinNr, "IN");
+    while(run)
+    {
+        if(pollGPIO(pinNr))
+        //if(readPIN(pinNr))
+        {
+            currSongIndex--;
+            if(currSongIndex < 0)
+            {
+                currSongIndex = 0;
+            }
+            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+            gchar *value;
+            gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+    
+            gtk_entry_set_text(entryPath, value);
+        }
+    }
+    //deinitPIN(pinNr);
 }
 
 int readFile(char* argv)
