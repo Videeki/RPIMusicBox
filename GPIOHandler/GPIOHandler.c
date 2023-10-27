@@ -132,6 +132,7 @@ int initGPIO(struct gpiohandle_request* rq, int pins[], int nrOfPins, int direct
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__
+    strcpy(rq->consumer_label, "MusicBoxButtons");
     int fd, ret, i;
     // open the device
     fd = open(DEV_NAME, O_RDONLY);
@@ -143,6 +144,7 @@ int initGPIO(struct gpiohandle_request* rq, int pins[], int nrOfPins, int direct
     
     for(i = 0; i < nrOfPins; i++)
     {
+        rq->default_values[i] = 0;
         rq->lineoffsets[i] = pins[i];
     }
 

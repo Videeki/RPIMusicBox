@@ -1,10 +1,11 @@
-// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -IGPIOHandler "./GPIOHandler/GPIOHandler.c" -IQueue "./Queue/Queue.c" -IPlayMusic "./PlayMusic/PlayMusic.c" -lmpg123 -lao -lpthread
+// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -IGPIOHandler "./GPIOHandler/GPIOHandler.c" -IQueue "./Queue/Queue.c" -IPlayMusic "./PlayMusic/PlayMusic.c" -lmpg123 -lao -lpthread -lm
 
 
 // Standard library
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <unistd.h>
 
 // UI
@@ -70,6 +71,7 @@ static void turnON(GtkWidget *widget, gpointer data);
 static void turnOFF(GtkWidget *widget, gpointer data);
 
 static void musicPlayer();
+static void gpioHandling();
 
 static void addMusicGPIO();
 static void nextFolderGPIO();
@@ -79,13 +81,16 @@ static void previousSongGPIO();
 
 int readFile(char* argv);
 int getFolders(char* path);
+int addArrayElements(int *intArray, int arraySize);
 
 static void addMusic2PlaylistGPIO();
 
 int main(int argc, char *argv[])
 {
     //readFile("config.ini");
-    pthread_t musicTID, addMusicTID, nextFolderTID, previousFolderTID, nextSongTID, previousSongTID;
+    pthread_t musicTID;
+    pthread_t gpioHandlingTID;
+    //pthread_t addMusicTID, nextFolderTID, previousFolderTID, nextSongTID, previousSongTID;
     obtain(&playlist, "MusicQueue", 100);
     GError *error = NULL;
 
@@ -148,11 +153,12 @@ int main(int argc, char *argv[])
 
 
     pthread_create(&musicTID, NULL, musicPlayer, NULL);
-    pthread_create(&addMusicTID, NULL, addMusicGPIO, NULL);
-    pthread_create(&nextFolderTID, NULL, nextFolderGPIO, NULL);
-    pthread_create(&previousFolderTID, NULL, previousFolderGPIO, NULL);
-    pthread_create(&nextSongTID, NULL, nextSongGPIO, NULL);
-    pthread_create(&previousSongTID, NULL, previousSongGPIO, NULL);
+    pthread_create(&gpioHandlingTID, NULL, gpioHandling, NULL);
+    //pthread_create(&addMusicTID, NULL, addMusicGPIO, NULL);
+    //pthread_create(&nextFolderTID, NULL, nextFolderGPIO, NULL);
+    //pthread_create(&previousFolderTID, NULL, previousFolderGPIO, NULL);
+    //pthread_create(&nextSongTID, NULL, nextSongGPIO, NULL);
+    //pthread_create(&previousSongTID, NULL, previousSongGPIO, NULL);
 
 
     gtk_main ();
@@ -319,6 +325,132 @@ static void musicPlayer()
     
     //puts("Music closed");
     closeMusic();
+}
+
+static void gpioHandling()
+{
+    puts("Start, polling");
+    struct gpiohandle_request req;
+    int ctrlPINS[5] = {23, 24, 25, 26, 27};
+    int ctrlPINSValues[5] = {0, 0, 0, 0, 0};
+    int regPINSValeus[5] = {0,0,0,0,0};
+    int i;
+    //int sum = 0;
+    printf("GPIO init: %d\n", initGPIO(&req, ctrlPINS, 5, INPUT));
+
+    while (run)
+    {   
+        int pushed = -1;
+        int released = -1;
+        do  //Polling
+        {
+            readGPIO(&req, ctrlPINSValues);
+            usleep(100000);
+            if(addArrayElements(ctrlPINSValues, sizeof(ctrlPINSValues)/sizeof(int)) != 0)
+            {
+                regPINSValeus[0] = ctrlPINSValues[0];
+                regPINSValeus[1] = ctrlPINSValues[1];
+                regPINSValeus[2] = ctrlPINSValues[2];
+                regPINSValeus[3] = ctrlPINSValues[3];
+                regPINSValeus[4] = ctrlPINSValues[4];
+                pushed = 1;
+                do
+                {
+                    readGPIO(&req, ctrlPINSValues);
+                    usleep(100000);
+                    if(addArrayElements(ctrlPINSValues, sizeof(ctrlPINSValues)/sizeof(int)) == 0)
+                    {
+                        released = 1;
+                    }
+
+                } while (released != 1);
+            }
+
+        } while (pushed != 1 && released != 1);
+        
+        int sum = 0;
+        for(i = 0; i < sizeof(ctrlPINS)/sizeof(int); i++)
+        {
+            regPINSValeus[i] *= (int)pow((double)2, (double)i);
+            sum += regPINSValeus[i];
+        }
+        printf("Sum Value: %d\n", sum);
+        switch(sum)
+        {
+            case 1:     //addMusicGPIO
+            {
+                const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
+                strcpy(title, initFolder);
+                strcat(title, "/");
+                strcat(title, input);
+                enqueue(&playlist, title);
+
+                break;
+            }
+
+            case 2:     //nextFolderGPIO
+            {
+                currFolderIndex++;
+                strcpy(initFolder, mainFolder);
+                strcat(initFolder, folderNames[currFolderIndex]);
+
+                populateList(initFolder);
+
+                break;
+            }
+
+            case 4:     //previousFolderGPIO
+            {
+                currFolderIndex--;
+                strcpy(initFolder, mainFolder);
+                strcat(initFolder, folderNames[currFolderIndex]);
+
+                populateList(initFolder);
+
+                break;
+            }
+
+            case 8:     //nextSongGPIO
+            {
+                currSongIndex++;
+                gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+                gchar *value;
+                gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+
+                gtk_entry_set_text(entryPath, value);
+
+                break;
+            }
+
+            case 16:    //previousSongGPIO
+            {
+                currSongIndex--;
+                if(currSongIndex < 0)
+                {
+                    currSongIndex = 0;
+                }
+                gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+                gchar *value;
+                gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+
+                gtk_entry_set_text(entryPath, value);
+
+                break;
+            }
+
+            case 31:    //Ultimate combo
+            {
+                puts("Ultimate combo!");
+            }
+
+            default:
+            {
+                puts("NO... NO... Nem lenni!");
+            }
+        }
+    }
 }
 
 static void addMusicGPIO()
@@ -503,4 +635,17 @@ int getFolders(char* path)
     
     closedir (pDir);
     return i;
+}
+
+int addArrayElements(int *intArray, int arraySize)
+{
+    int i;
+    int sum = 0;
+
+    for(i = 0; i < arraySize; i++)
+    {
+        sum += intArray[i];
+    }
+
+    return sum;
 }
