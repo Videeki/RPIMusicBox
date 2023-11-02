@@ -6,12 +6,22 @@
 #define GPIOHANDLER_VERSION_FIX     0
 
 #ifdef _WIN32
-	printf("The GPIO Handling has not implemented yet on Windows.\n");
+	typedef struct _hw
+	{
+		char comport[5];
+		int* pins;
+		int direction;
+	}hw;
+
+	#define refStruct hw
+	//puts("The GPIO Handling has not implemented yet on Windows.");
 
 #elif __linux__
 #include <linux/gpio.h>
 #include <sys/ioctl.h>
 #include <sys/poll.h>
+
+#define refStruct struct gpiohandle_request
 
 #endif
 
@@ -37,10 +47,11 @@ int writePIN(int pinNr, int value);
 int readPIN(int pinNr);
 int deinitPIN(int pinNr);
 
-int initGPIO(struct gpiohandle_request* rq, int pins[], int nrOfPins, int direction);
-int writeGPIO(struct gpiohandle_request* rq, int* values);
-int readGPIO(struct gpiohandle_request* rq, int* values);
+int initGPIO(refStruct* rq, int pins[], int nrOfPins, int direction);
+int writeGPIO(refStruct* rq, int* values);
+int readGPIO(refStruct* rq, int* values);
 int pollGPIO(int offset);
-int closeGPIO(struct gpiohandle_request* rq);
+int detectButtonAction(refStruct* rq, int* values, int msdelay);
+int closeGPIO(refStruct* rq);
 
 #endif

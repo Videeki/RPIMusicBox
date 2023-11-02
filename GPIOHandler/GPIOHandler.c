@@ -1,6 +1,7 @@
 // Compiling: gcc GPIOHandler.c -o Builds/GPIOHandler
 #include "GPIOHandler.h"
 
+
 int initPIN(int pinNr)
 {
     #ifdef _WIN32
@@ -125,7 +126,7 @@ int deinitPIN(int pinNr)
     return 0;
 }
 
-int initGPIO(struct gpiohandle_request* rq, int pins[], int nrOfPins, int direction)
+int initGPIO(refStruct* rq, int pins[], int nrOfPins, int direction)
 {
     #ifdef _WIN32
     int ret = 0;
@@ -158,13 +159,12 @@ int initGPIO(struct gpiohandle_request* rq, int pins[], int nrOfPins, int direct
         printf("Unable to get line handle from ioctl : %s", strerror(errno));
         return ret;
     }
-
     #endif
 
     return ret;
 }
 
-int writeGPIO(struct gpiohandle_request* rq, int* values)
+int writeGPIO(refStruct* rq, int* values)
 {
     #ifdef _WIN32
     int ret = 0;
@@ -189,13 +189,12 @@ int writeGPIO(struct gpiohandle_request* rq, int* values)
     {
          usleep(2000000);
     }
-    
     #endif
 
     return ret;
 }
 
-int readGPIO(struct gpiohandle_request* rq, int* values)
+int readGPIO(refStruct* rq, int* values)
 {
     #ifdef _WIN32
     int ret = 0;
@@ -220,7 +219,6 @@ int readGPIO(struct gpiohandle_request* rq, int* values)
             values[i] = data.values[i];
         }
     }
-
     #endif
 
     return ret;
@@ -278,14 +276,77 @@ int pollGPIO(int offset)
     return ret;
 }
 
-int closeGPIO(struct gpiohandle_request* rq)
+int detectButtonAction(refStruct* rq, int* values, int msdelay)
 {
     #ifdef _WIN32
-    printf("The GPIO Handling has not implemented yet on Windows.\n");
+    int ret = 0;
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__
-    close(rq->fd);
+    int nrOfPins = rq->lines;
+    int ctrlPINSValues[nrOfPins];
+    int ret, i, sum;
+ 
+    int pushed = -1;
+    int released = -1;
+    do  //Polling
+    {
+        ret = readGPIO(rq, ctrlPINSValues);
+        if (ret == -1)
+        {
+            return ret;
+        }
+        usleep(msdelay *1000);
 
+        sum = 0;
+        for(i = 0; i < nrOfPins; i++)
+        {
+            sum += ctrlPINSValues[i];
+        }
+
+        if(sum != 0)
+        {
+            for(i = 0; i < nrOfPins; i++)
+            {
+                values[i] = ctrlPINSValues[i];
+            }
+
+            pushed = 1;
+            do
+            {
+                readGPIO(rq, ctrlPINSValues);
+                if (ret == -1)
+                {
+                    return ret;
+                }
+
+                usleep(msdelay *1000);
+
+                sum = 0;
+                for(i = 0; i < nrOfPins; i++)
+                {
+                    sum += ctrlPINSValues[i];
+                }
+
+                if(sum == 0)
+                {
+                    released = 1;
+                }
+            }while(released != 1);
+        }
+    }while(pushed != 1 && released != 1);
+    #endif
+
+    return ret; 
+}
+
+int closeGPIO(refStruct* rq)
+{
+    #ifdef _WIN32
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__    
+    close(rq->fd);
     #endif
 
     return 0;
