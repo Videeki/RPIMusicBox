@@ -38,7 +38,9 @@ GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic, *b
 GObject *entryPath;
 
 GtkListStore *lsSongs;
-    
+GtkScrolledWindow *songSW;
+GtkAdjustment *listAdjustment;
+
 GtkTreeView *tvwSongs;
 GtkTreeViewColumn *tvwcTitle;
 GtkCellRenderer *rndrSong;
@@ -61,6 +63,7 @@ int run = 1;
 
 int populateList(char* path);
 
+static void scroll_to_selection(GtkTreeSelection *selection,gpointer user_data);
 static void stepFolderNext(GtkWidget *widget, gpointer data);
 static void stepFolderPrevious(GtkWidget *widget, gpointer data);
 static void stepSoundNext(GtkWidget *widget, gpointer data);
@@ -113,12 +116,14 @@ int main(int argc, char *argv[])
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
     gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"4.1.0 Write the main Music folder");
 
+    songSW = GTK_SCROLLED_WINDOW(gtk_builder_get_object(builder, "songSW"));
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
     tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
     gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
     gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
     songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
+    g_signal_connect(songSelection,"changed",G_CALLBACK(scroll_to_selection),tvwSongs);
 
 
     strcpy(mainFolder, "/media/videeki/Adatok/Zene/");
@@ -215,9 +220,28 @@ int populateList(char* path)
 
         gtk_entry_set_text(entryPath, value);
 
+        gtk_scrolled_window_get_vadjustment(songSW);
+
+
     }
     
     return 0;
+}
+
+static void scroll_to_selection(GtkTreeSelection *selection,gpointer user_data)
+{
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+    GtkTreePath *path;
+
+    GtkWidget *treeview = GTK_WIDGET(user_data);
+
+    if(gtk_tree_selection_get_selected(selection,&model,&iter))
+    {
+        path = gtk_tree_model_get_path(model,&iter);
+        gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(treeview),path,NULL,FALSE,0.0,0.0);
+        gtk_tree_path_free(path);
+    }
 }
 
 static void stepFolderNext(GtkWidget *widget, gpointer data)
