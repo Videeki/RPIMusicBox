@@ -34,8 +34,9 @@
 
 GtkBuilder *builder;
 GObject *window;
-GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic, *btnTurnON, *btnTurnOFF;
+GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic;
 GObject *entryPath;
+GObject *folderName;
 
 GtkListStore *lsSongs;
 GtkScrolledWindow *songSW;
@@ -51,11 +52,14 @@ GtkTreeIter actIter[255];
 
 int currFolderIndex = 0;
 int currSongIndex = 0;
+int nrOfFolders = 0;
+int nrOfSongs = 0;
 
 char** folderNames;
 char mainFolder[PATH_LENGTH];
 char initFolder[PATH_LENGTH];
 char title[PATH_LENGTH];
+char musicPath[PATH_LENGTH];
 enum {SONG_COLUMN, N_COLUMNS};
 
 string_Queue_t playlist;
@@ -64,36 +68,25 @@ int run = 1;
 int populateList(char* path);
 
 static void scroll_to_selection(GtkTreeSelection *selection,gpointer user_data);
-static void stepFolderNext(GtkWidget *widget, gpointer data);
-static void stepFolderPrevious(GtkWidget *widget, gpointer data);
-static void stepSoundNext(GtkWidget *widget, gpointer data);
-static void stepSoundPrevious(GtkWidget *widget, gpointer data);
-static void addMusic2Playlist(GtkWidget *widget, gpointer data);
+static void stepFolderNext();
+static void stepFolderPrevious();
+static void stepSoundNext();
+static void stepSoundPrevious();
+static void addMusic2Playlist();
 
-static void turnON(GtkWidget *widget, gpointer data);
-static void turnOFF(GtkWidget *widget, gpointer data);
-
-static void musicPlayer();
-static void gpioHandling();
-
-static void addMusicGPIO();
-static void nextFolderGPIO();
-static void previousFolderGPIO();
-static void nextSongGPIO();
-static void previousSongGPIO();
+static void* musicPlayer();
+static void* gpioHandling();
 
 int readFile(char* argv);
 int getFolders(char* path);
 int addArrayElements(int *intArray, int arraySize);
 
-static void addMusic2PlaylistGPIO();
 
 int main(int argc, char *argv[])
 {
     //readFile("config.ini");
     pthread_t musicTID;
     pthread_t gpioHandlingTID;
-    //pthread_t addMusicTID, nextFolderTID, previousFolderTID, nextSongTID, previousSongTID;
     obtain(&playlist, "MusicQueue", 100);
     GError *error = NULL;
 
@@ -114,7 +107,10 @@ int main(int argc, char *argv[])
 
     entryPath = gtk_builder_get_object(builder, "entryPath");
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"4.1.0 Write the main Music folder");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"Music Title");
+
+    folderName = gtk_builder_get_object(builder, "folderName");
+    g_object_set_data(G_OBJECT(window), "folderName", folderName);
 
     songSW = GTK_SCROLLED_WINDOW(gtk_builder_get_object(builder, "songSW"));
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
@@ -146,24 +142,12 @@ int main(int argc, char *argv[])
     btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
     g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(stepSoundNext), NULL);  
 
-
     btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
     g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(addMusic2Playlist), NULL);
-
-    btnTurnON = gtk_builder_get_object (builder, "btnTurnON");
-    g_signal_connect(btnTurnON, "clicked", G_CALLBACK(turnON), NULL);
-
-    btnTurnOFF = gtk_builder_get_object (builder, "btnTurnOFF");
-    g_signal_connect(btnTurnOFF, "clicked", G_CALLBACK(turnOFF), NULL);
 
 
     pthread_create(&musicTID, NULL, musicPlayer, NULL);
     pthread_create(&gpioHandlingTID, NULL, gpioHandling, NULL);
-    //pthread_create(&addMusicTID, NULL, addMusicGPIO, NULL);
-    //pthread_create(&nextFolderTID, NULL, nextFolderGPIO, NULL);
-    //pthread_create(&previousFolderTID, NULL, previousFolderGPIO, NULL);
-    //pthread_create(&nextSongTID, NULL, nextSongGPIO, NULL);
-    //pthread_create(&previousSongTID, NULL, previousSongGPIO, NULL);
 
 
     gtk_main ();
@@ -203,6 +187,7 @@ int populateList(char* path)
                 i++;
             }
         }
+        nrOfSongs = i - 1;
 
         rewinddir(pDir);
         
@@ -218,10 +203,9 @@ int populateList(char* path)
         gchar *value;
         gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
 
-        gtk_entry_set_text(entryPath, value);
+        strcpy(musicPath, value);
 
         gtk_scrolled_window_get_vadjustment(songSW);
-
 
     }
     
@@ -244,94 +228,88 @@ static void scroll_to_selection(GtkTreeSelection *selection,gpointer user_data)
     }
 }
 
-static void stepFolderNext(GtkWidget *widget, gpointer data)
+static void addMusic2Playlist()
+{
+    strcpy(title, initFolder);
+    strcat(title, "/");
+    strcat(title, musicPath);
+    enqueue(&playlist, title);
+}
+
+static void stepFolderNext()
 {   
     currFolderIndex++;
-    strcpy(initFolder, mainFolder);
-    strcat(initFolder, folderNames[currFolderIndex]);
+    if(currFolderIndex <= nrOfFolders)
+    {
+        strcpy(initFolder, mainFolder);
+        gtk_entry_set_text(GTK_ENTRY(folderName), folderNames[currFolderIndex]);
+        strcat(initFolder, folderNames[currFolderIndex]);
 
-    populateList(initFolder);
+        populateList(initFolder);
+    }
+    else
+    {
+        currFolderIndex--;
+    }
 }
 
-static void stepFolderPrevious(GtkWidget *widget, gpointer data)
+static void stepFolderPrevious()
 {
     currFolderIndex--;
-    strcpy(initFolder, mainFolder);
-    strcat(initFolder, folderNames[currFolderIndex]);
+    if(currFolderIndex >= 0)
+    {
+        strcpy(initFolder, mainFolder);
+        gtk_entry_set_text(GTK_ENTRY(folderName), folderNames[currFolderIndex]);
+        strcat(initFolder, folderNames[currFolderIndex]);
 
-    populateList(initFolder);
+        populateList(initFolder);
+    }
+    else
+    {
+        currFolderIndex = 0;
+    }
 }
 
-static void stepSoundNext(GtkWidget *widget, gpointer data)
+static void stepSoundNext()
 {   
     currSongIndex++;
-    gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+    if(currSongIndex <= nrOfSongs)
+    {
+        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
 
-    gchar *value;
-    gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
-    
-    gtk_entry_set_text(entryPath, value);
+        gchar *value;
+        gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+
+        strcpy(musicPath, value);
+    }
+    else
+    {
+        currSongIndex--;
+    }
 }
 
-static void stepSoundPrevious(GtkWidget *widget, gpointer data)
+static void stepSoundPrevious()
 {   
     currSongIndex--;
-    if(currSongIndex < 0)
+    if(currSongIndex >= 0)
+    {
+        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+
+        gchar *value;
+        gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+
+        strcpy(musicPath, value);
+    }
+    else
     {
         currSongIndex = 0;
     }
-    gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
-
-    gchar *value;
-    gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
-    
-    gtk_entry_set_text(entryPath, value);
 }
 
-static void addMusic2Playlist(GtkWidget *widget, gpointer data)
-{
-    const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
-    strcpy(title, initFolder);
-    strcat(title, "/");
-    strcat(title, input);
-    enqueue(&playlist, title);
-}
-
-static void addMusic2PlaylistGPIO()
-{
-    const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
-    strcpy(title, initFolder);
-    strcat(title, "/");
-    strcat(title, input);
-    enqueue(&playlist, title);
-}
-
-static void turnON(GtkWidget *widget, gpointer data)
-{
-  int LED = 23;
-  char mode[] = "out";
-
-  initPIN(LED);
-  setupPIN(LED, mode);
-  writePIN(LED, ON);
-  deinitPIN(LED);
-
-}
-
-static void turnOFF(GtkWidget *widget, gpointer data)
-{
-  int LED = 23;
-  char mode[] = "out";
-
-  initPIN(LED);
-  setupPIN(LED, mode);
-  writePIN(LED, OFF);
-  deinitPIN(LED);
-}
-
-static void musicPlayer()
+static void* musicPlayer()
 {
     //puts("Music initialization");
+    char musicTitle[255];
     initMusic();
     
     while(run)
@@ -342,7 +320,15 @@ static void musicPlayer()
         }
         else
         {   
-            playMusic(dequeue(&playlist));
+            strcpy(musicTitle, dequeue(&playlist));
+            
+            #ifdef _WIN32
+            gtk_entry_set_text(GTK_ENTRY(entryPath), strrchr(musicTitle, '\\') + 1);
+            #elif __linux__
+            gtk_entry_set_text(GTK_ENTRY(entryPath), strrchr(musicTitle, '/') + 1);
+            #endif
+            
+            playMusic(musicTitle);
         }
         
     }
@@ -351,116 +337,56 @@ static void musicPlayer()
     closeMusic();
 }
 
-static void gpioHandling()
+static void* gpioHandling()
 {
     puts("Start, polling");
     struct gpiohandle_request req;
     int ctrlPINS[5] = {23, 24, 25, 26, 27};
-    int ctrlPINSValues[5] = {0, 0, 0, 0, 0};
     int regPINSValeus[5] = {0,0,0,0,0};
     int i;
-    //int sum = 0;
-    printf("GPIO init: %d\n", initGPIO(&req, ctrlPINS, 5, INPUT));
+
+    initGPIO(&req, ctrlPINS, 5, INPUT);
 
     while (run)
     {   
-        int pushed = -1;
-        int released = -1;
-        do  //Polling
-        {
-            readGPIO(&req, ctrlPINSValues);
-            usleep(100000);
-            if(addArrayElements(ctrlPINSValues, sizeof(ctrlPINSValues)/sizeof(int)) != 0)
-            {
-                regPINSValeus[0] = ctrlPINSValues[0];
-                regPINSValeus[1] = ctrlPINSValues[1];
-                regPINSValeus[2] = ctrlPINSValues[2];
-                regPINSValeus[3] = ctrlPINSValues[3];
-                regPINSValeus[4] = ctrlPINSValues[4];
-                pushed = 1;
-                do
-                {
-                    readGPIO(&req, ctrlPINSValues);
-                    usleep(100000);
-                    if(addArrayElements(ctrlPINSValues, sizeof(ctrlPINSValues)/sizeof(int)) == 0)
-                    {
-                        released = 1;
-                    }
+        detectButtonAction(&req, regPINSValeus, 100);
 
-                } while (released != 1);
-            }
-
-        } while (pushed != 1 && released != 1);
-        
         int sum = 0;
-        for(i = 0; i < sizeof(ctrlPINS)/sizeof(int); i++)
+        for(i = 0; i < req.lines; i++)
         {
             regPINSValeus[i] *= (int)pow((double)2, (double)i);
             sum += regPINSValeus[i];
         }
-        printf("Sum Value: %d\n", sum);
+        
         switch(sum)
         {
-            case 1:     //addMusicGPIO
+            case 1:     //addMusic2Playlist
             {
-                const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
-                strcpy(title, initFolder);
-                strcat(title, "/");
-                strcat(title, input);
-                enqueue(&playlist, title);
-
+                addMusic2Playlist();
                 break;
             }
 
-            case 2:     //nextFolderGPIO
+            case 2:     //stepFolderNext
             {
-                currFolderIndex++;
-                strcpy(initFolder, mainFolder);
-                strcat(initFolder, folderNames[currFolderIndex]);
-
-                populateList(initFolder);
-
+                stepFolderNext();
                 break;
             }
 
-            case 4:     //previousFolderGPIO
+            case 4:     //stepFolderPrevious
             {
-                currFolderIndex--;
-                strcpy(initFolder, mainFolder);
-                strcat(initFolder, folderNames[currFolderIndex]);
-
-                populateList(initFolder);
-
+                stepFolderPrevious();
                 break;
             }
 
-            case 8:     //nextSongGPIO
+            case 8:     //stepSoundNext
             {
-                currSongIndex++;
-                gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
-
-                gchar *value;
-                gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
-
-                gtk_entry_set_text(entryPath, value);
-
+                stepSoundNext();
                 break;
             }
 
-            case 16:    //previousSongGPIO
+            case 16:    //stepSoundPrevious
             {
-                currSongIndex--;
-                if(currSongIndex < 0)
-                {
-                    currSongIndex = 0;
-                }
-                gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
-
-                gchar *value;
-                gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
-
-                gtk_entry_set_text(entryPath, value);
-
+                stepSoundPrevious();
                 break;
             }
 
@@ -475,114 +401,8 @@ static void gpioHandling()
             }
         }
     }
-}
 
-static void addMusicGPIO()
-{
-    int pinNr = 23;
-    //initPIN(pinNr);
-    //setupPIN(pinNr, "IN");
-    while(run)
-    {
-        if(pollGPIO(pinNr))
-        //if(readPIN(pinNr))
-        {
-            const char* input = gtk_entry_get_text(GTK_ENTRY(entryPath));
-            strcpy(title, initFolder);
-            strcat(title, "/");
-            strcat(title, input);
-            enqueue(&playlist, title);
-        }
-    }
-    //deinitPIN(pinNr);
-}
-
-static void nextFolderGPIO()
-{
-    int pinNr = 24;
-    //initPIN(pinNr);
-    //setupPIN(pinNr, "IN");
-    while(run)
-    {
-        if(pollGPIO(pinNr))
-        //if(readPIN(pinNr))
-        {
-            currFolderIndex++;
-            strcpy(initFolder, mainFolder);
-            strcat(initFolder, folderNames[currFolderIndex]);
-
-            populateList(initFolder);
-        }
-    }
-    //deinitPIN(pinNr);
-}
-
-static void previousFolderGPIO()
-{
-    int pinNr = 25;
-    //initPIN(pinNr);
-    //setupPIN(pinNr, "IN");
-    while(run)
-    {
-        if(pollGPIO(pinNr))
-        //if(readPIN(pinNr))
-        {
-            currFolderIndex--;
-            strcpy(initFolder, mainFolder);
-            strcat(initFolder, folderNames[currFolderIndex]);
-
-            populateList(initFolder);
-        }
-    }
-    //deinitPIN(pinNr);
-}
-
-static void nextSongGPIO()
-{
-    int pinNr = 26;
-    //initPIN(pinNr);
-    //setupPIN(pinNr, "IN");
-    while(run)
-    {
-        if(pollGPIO(pinNr))
-        //if(readPIN(pinNr))
-        {
-            currSongIndex++;
-            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
-
-            gchar *value;
-            gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
-    
-            gtk_entry_set_text(entryPath, value);
-        }
-    }
-    //deinitPIN(pinNr);
-}
-
-static void previousSongGPIO()
-{
-    int pinNr = 27;
-    //initPIN(pinNr);
-    //setupPIN(pinNr, "IN");
-    while(run)
-    {
-        if(pollGPIO(pinNr))
-        //if(readPIN(pinNr))
-        {
-            currSongIndex--;
-            if(currSongIndex < 0)
-            {
-                currSongIndex = 0;
-            }
-            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
-
-            gchar *value;
-            gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
-    
-            gtk_entry_set_text(entryPath, value);
-        }
-    }
-    //deinitPIN(pinNr);
+    closeGPIO(&req);
 }
 
 int readFile(char* argv)
@@ -639,7 +459,8 @@ int getFolders(char* path)
     {
         i++;
     }
-    
+    nrOfFolders = i;
+
     rewinddir(pDir);
     
     folderNames = (char**)malloc(i * sizeof(char*));  

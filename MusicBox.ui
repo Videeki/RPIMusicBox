@@ -19,30 +19,6 @@
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
-          <object class="GtkButton" id="btnTurnON">
-            <property name="label">Turn ON</property>
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="receives-default">False</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">6</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="btnTurnOFF">
-            <property name="label">Turn OFF</property>
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="receives-default">False</property>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">7</property>
-          </packing>
-        </child>
-        <child>
           <object class="GtkButton" id="btnAddMusic">
             <property name="label">Add Music</property>
             <property name="visible">True</property>
@@ -109,6 +85,17 @@
           </object>
           <packing>
             <property name="left-attach">0</property>
+            <property name="top-attach">9</property>
+            <property name="width">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="folderName">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="left-attach">0</property>
             <property name="top-attach">0</property>
             <property name="width">2</property>
           </packing>
@@ -151,7 +138,7 @@
           <packing>
             <property name="left-attach">0</property>
             <property name="top-attach">1</property>
-            <property name="height">8</property>
+            <property name="height">7</property>
           </packing>
         </child>
         <child>
