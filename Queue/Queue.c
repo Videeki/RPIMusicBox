@@ -26,7 +26,7 @@ int enqueue(string_Queue_t* queueRef, char* data)
         printf("Buffer is full!\n");
         return -1;
     }
-    queueRef->queueMemory[queueRef->writeIndex] = (char*)malloc(255 * sizeof(char));
+    queueRef->queueMemory[queueRef->writeIndex] = (char*)malloc(strlen(data) * sizeof(char));
     strcpy(queueRef->queueMemory[queueRef->writeIndex], data);
 
     queueRef->bufferLength++;
