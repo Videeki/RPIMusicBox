@@ -1,4 +1,4 @@
-// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -IGPIOHandler "./GPIOHandler/GPIOHandler.c" -IQueue "./Queue/Queue.c" -IPlayMusic "./PlayMusic/PlayMusic.c" -lmpg123 -lao -lpthread -lm
+// Compiling: gcc `pkg-config --cflags gtk+-3.0` -o Builds/UI UI.c `pkg-config --libs gtk+-3.0` -IGPIOHandler "./GPIOHandler/GPIOHandler.c" -IQueue "./Queue/Queue.c" -IpRegex "./pRegex/pRegex.c" -IConfigFile "./ConfigFile/ConfigFile.c" -IPlayMusic "./PlayMusic/PlayMusic.c" -lmpg123 -lao -lpthread -lm
 
 
 // Standard library
@@ -8,23 +8,16 @@
 #include <math.h>
 #include <unistd.h>
 
-// UI
-#include <gtk/gtk.h>
+#include <gtk/gtk.h>        // UI
+#include <pthread.h>        // Thread
+#include <dirent.h>         // Folder structure
 
-// Thread
-#include <pthread.h>
+#include "Queue.h"          // Queue
+#include "PlayMusic.h"      // Sound
+#include "GPIOHandler.h"    // GPIO
+#include "pRegex.h"         // Find Match function
+#include "ConfigFile.h"     // Config
 
-// Folder structure
-#include <dirent.h>
-
-// Queue
-#include "Queue.h"
-
-// Sound
-#include "PlayMusic.h"
-
-// GPIO
-#include "GPIOHandler.h"
 
 #define ON 1
 #define OFF 0
@@ -75,7 +68,8 @@ static void stepSoundPrevious();
 static void addMusic2Playlist();
 
 static void* musicPlayer();
-static void* gpioHandling();
+//static void* gpioHandling();
+static void* gpioHandling(config *configINI);
 
 int readFile(char* argv);
 int getFolders(char* path);
@@ -90,13 +84,22 @@ int main(int argc, char *argv[])
     obtain(&playlist, "MusicQueue", 100);
     GError *error = NULL;
 
+    config configINI;
+    char* filename = "config.ini";
+    char* configSection = "Default";
+
+    char* configStr = openConfig(filename);
+    parseConfig(configStr, &configINI);
+    closeConfig(configStr);
+
+
     gtk_init(&argc, &argv);
 
     /* Construct a GtkBuilder instance and load our UI description */
     builder = gtk_builder_new ();
-    if (gtk_builder_add_from_file (builder, "MusicBox.ui", &error) == 0)
+    if (gtk_builder_add_from_file (builder, readKey(&configINI, "Default", "Theme"), &error) == 0)
     {
-        g_printerr ("Error loading file: %s\n", error->message);
+        g_printerr("Error loading file: %s\n", error->message);
         g_clear_error (&error);
         return 1;
     }
@@ -122,7 +125,7 @@ int main(int argc, char *argv[])
     g_signal_connect(songSelection,"changed",G_CALLBACK(scroll_to_selection),tvwSongs);
 
 
-    strcpy(mainFolder, "/media/videeki/Adatok/Zene/");
+    strcpy(mainFolder, readKey(&configINI, configSection, "MusicFolder"));
     getFolders(mainFolder);
 
     strcpy(initFolder, mainFolder);
@@ -147,7 +150,7 @@ int main(int argc, char *argv[])
 
 
     pthread_create(&musicTID, NULL, musicPlayer, NULL);
-    pthread_create(&gpioHandlingTID, NULL, gpioHandling, NULL);
+    pthread_create(&gpioHandlingTID, NULL, gpioHandling, (void*)&configINI);
 
 
     gtk_main ();
@@ -337,11 +340,17 @@ static void* musicPlayer()
     closeMusic();
 }
 
-static void* gpioHandling()
+static void* gpioHandling(config *configINI)
 {
+    int addButton = atoi(readKey(configINI, "Default", "AddButton"));
+    int nextFolder = atoi(readKey(configINI, "Default", "NextFolder"));
+    int prevFolder = atoi(readKey(configINI, "Default", "PreviousFolder"));
+    int nextSong = atoi(readKey(configINI, "Default", "NextSong"));
+    int prevSong = atoi(readKey(configINI, "Default", "PreviousSong"));
+
     puts("Start, polling");
     struct gpiohandle_request req;
-    int ctrlPINS[5] = {23, 24, 25, 26, 27};
+    int ctrlPINS[5] = {addButton, nextFolder, prevFolder, nextSong, prevSong};
     int regPINSValeus[5] = {0,0,0,0,0};
     int i;
 
