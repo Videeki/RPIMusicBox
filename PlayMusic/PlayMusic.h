@@ -1,9 +1,9 @@
 #ifndef PLAYMUSIC_H
 #define PLAYMUSIC_H
 
-#define PLAYMUSIC_VERSION_MAJOR   0
-#define PLAYMUSIC_VERSION_MINOR   2
-#define PLAYMUSIC_VERSION_FIX     1
+#define PLAYMUSIC_VERSION_MAJOR     0
+#define PLAYMUSIC_VERSION_MINOR     2
+#define PLAYMUSIC_VERSION_PATCH     1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,4 +27,4 @@ int initMusic();
 int playMusic(char *path);
 int closeMusic();
 
-#endif
+#endif  /* PLAYMUSIC_H */

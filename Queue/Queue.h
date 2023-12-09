@@ -1,9 +1,9 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
-#define QUEUE_VERSION_MAJOR   0
-#define QUEUE_VERSION_MINOR   2
-#define QUEUE_VERSION_FIX     0
+#define QUEUE_VERSION_MAJOR     0
+#define QUEUE_VERSION_MINOR     2
+#define QUEUE_VERSION_PATCH     1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,4 +51,4 @@ int nrOfElements(string_Queue_t* queueRef);
 int show(string_Queue_t* queueRef);
 char* flush(string_Queue_t* queueRef); //Removes all elements from a queue and returns the elements as an array.
 
-#endif
+#endif  /* QUEUE_H */

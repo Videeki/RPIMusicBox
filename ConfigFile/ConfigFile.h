@@ -1,9 +1,9 @@
-#ifndef INIPARSER_H
-#define INIPARSER_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
-#define INIPARSER_VERSION_MAJOR   0
-#define INIPARSER_VERSION_MINOR   2
-#define INIPARSER_VERSION_FIX     0
+#define CONFIG_VERSION_MAJOR    0
+#define CONFIG_VERSION_MINOR    2
+#define CONFIG_VERSION_PATCH    1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,4 +42,4 @@ char** getKeyNames(config* parseConfig, char* section);
 
 void trim(char *str);
 
-#endif /* INIPARSER_H */
+#endif /* CONFIG_H */

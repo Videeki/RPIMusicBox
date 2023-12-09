@@ -3,25 +3,27 @@
 
 #define GPIOHANDLER_VERSION_MAJOR   0
 #define GPIOHANDLER_VERSION_MINOR   2
-#define GPIOHANDLER_VERSION_FIX     0
+#define GPIOHANDLER_VERSION_PATCH	1
 
 #ifdef _WIN32
 	typedef struct _hw
 	{
 		char comport[5];
-		int* pins;
 		int direction;
+		int lines;
+		int* pins;
 	}hw;
 
 	#define refStruct hw
-	//puts("The GPIO Handling has not implemented yet on Windows.");
+	#define DEV_NAME "ExternalDevice"
 
 #elif __linux__
-#include <linux/gpio.h>
-#include <sys/ioctl.h>
-#include <sys/poll.h>
+	#include <linux/gpio.h>
+	#include <sys/ioctl.h>
+	#include <sys/poll.h>
 
-#define refStruct struct gpiohandle_request
+	#define refStruct struct gpiohandle_request
+	#define DEV_NAME "/dev/gpiochip0"
 
 #endif
 
@@ -37,7 +39,6 @@
 #define ON 1
 #define OFF 0
 
-#define DEV_NAME "/dev/gpiochip0"
 #define INPUT 0
 #define OUTPUT 1
 
@@ -54,4 +55,4 @@ int pollGPIO(int offset);
 int detectButtonAction(refStruct* rq, int* values, int msdelay);
 int closeGPIO(refStruct* rq);
 
-#endif
+#endif	/* GPIOHANDLER_H */
