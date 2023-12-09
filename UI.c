@@ -11,12 +11,13 @@
 #include <gtk/gtk.h>        // UI
 #include <pthread.h>        // Thread
 #include <dirent.h>         // Folder structure
+#include <regex.h>          // Regex
 
-#include "Queue.h"          // Queue
-#include "PlayMusic.h"      // Sound
-#include "GPIOHandler.h"    // GPIO
 #include "pRegex.h"         // Find Match function
 #include "ConfigFile.h"     // Config
+#include "GPIOHandler.h"    // GPIO
+#include "PlayMusic.h"      // Sound
+#include "Queue.h"          // Queue
 
 
 #define ON 1
@@ -25,21 +26,21 @@
 #define QUEUE_SIZE 255
 #define PATH_LENGTH 255
 
-GtkBuilder *builder;
-GObject *window;
-GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic;
-GObject *entryPath;
+//GtkBuilder *builder;
+//GObject *window;
+//GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic;
+//GObject *entryPath;
 GObject *folderName;
 
 GtkListStore *lsSongs;
 GtkScrolledWindow *songSW;
-GtkAdjustment *listAdjustment;
+//GtkAdjustment *listAdjustment;
 
 GtkTreeView *tvwSongs;
-GtkTreeViewColumn *tvwcTitle;
-GtkCellRenderer *rndrSong;
+//GtkTreeViewColumn *tvwcTitle;
+//GtkCellRenderer *rndrSong;
 GtkTreeSelection *songSelection;
-GtkTreeIter iter, nulliter;
+//GtkTreeIter iter, nulliter;
 
 GtkTreeIter actIter[255];
 
@@ -96,7 +97,7 @@ int main(int argc, char *argv[])
     gtk_init(&argc, &argv);
 
     /* Construct a GtkBuilder instance and load our UI description */
-    builder = gtk_builder_new ();
+    GtkBuilder* builder = gtk_builder_new();
     if (gtk_builder_add_from_file (builder, readKey(&configINI, "Default", "Theme"), &error) == 0)
     {
         g_printerr("Error loading file: %s\n", error->message);
@@ -105,10 +106,10 @@ int main(int argc, char *argv[])
     }
 
     /* Connect signal handlers to the constructed widgets. */
-    window = gtk_builder_get_object(builder, "window");
+    GObject* window = gtk_builder_get_object(builder, "window");
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-    entryPath = gtk_builder_get_object(builder, "entryPath");
+    GObject* entryPath = gtk_builder_get_object(builder, "entryPath");
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
     gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"Music Title");
 
@@ -117,8 +118,8 @@ int main(int argc, char *argv[])
 
     songSW = GTK_SCROLLED_WINDOW(gtk_builder_get_object(builder, "songSW"));
     tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
-    rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
-    tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
+    GtkCellRenderer* rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
+    GtkTreeViewColumn* tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
     gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
     gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
     songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
@@ -133,23 +134,23 @@ int main(int argc, char *argv[])
     populateList(initFolder);
     
 
-    btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
+    GObject* btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
     g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(stepFolderNext), NULL);
   
-    btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
+    GObject* btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
     g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(stepFolderPrevious), NULL);
 
-    btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
+    GObject* btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
     g_signal_connect(btnSongUP, "clicked", G_CALLBACK(stepSoundPrevious), NULL);  
 
-    btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
+    GObject* btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
     g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(stepSoundNext), NULL);  
 
-    btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
+    GObject* btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
     g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(addMusic2Playlist), NULL);
 
 
-    pthread_create(&musicTID, NULL, musicPlayer, NULL);
+    pthread_create(&musicTID, NULL, musicPlayer, (void*)entryPath);
     pthread_create(&gpioHandlingTID, NULL, gpioHandling, (void*)&configINI);
 
 
@@ -162,6 +163,7 @@ int main(int argc, char *argv[])
 
 int populateList(char* path)
 {
+    GtkTreeIter iter;
     struct dirent *pDirent;
     DIR *pDir;
 
@@ -309,7 +311,7 @@ static void stepSoundPrevious()
     }
 }
 
-static void* musicPlayer()
+static void* musicPlayer(GObject* entryPath)
 {
     //puts("Music initialization");
     char musicTitle[255];
@@ -349,7 +351,8 @@ static void* gpioHandling(config *configINI)
     int prevSong = atoi(readKey(configINI, "Default", "PreviousSong"));
 
     puts("Start, polling");
-    struct gpiohandle_request req;
+    //struct gpiohandle_request req;
+    refStruct req;
     int ctrlPINS[5] = {addButton, nextFolder, prevFolder, nextSong, prevSong};
     int regPINSValeus[5] = {0,0,0,0,0};
     int i;
