@@ -68,9 +68,10 @@ static void stepSoundNext();
 static void stepSoundPrevious();
 static void addMusic2Playlist();
 
-static void* musicPlayer();
+//static void* musicPlayer(GObject* entryPath);
+static void* musicPlayer(void *entryPath);
 //static void* gpioHandling();
-static void* gpioHandling(config *configINI);
+static void* gpioHandling(void *configINI);
 
 int readFile(char* argv);
 int getFolders(char* path);
@@ -89,7 +90,8 @@ int main(int argc, char *argv[])
     char* filename = "config.ini";
     char* configSection = "Default";
 
-    char* configStr = openConfig(filename);
+    //char* configStr = openConfig(filename);
+    char* configStr = openConfig("/home/videeki/Documents/GitRepos/RPIMusicBox/Builds/config.ini");
     parseConfig(configStr, &configINI);
     closeConfig(configStr);
 
@@ -121,7 +123,7 @@ int main(int argc, char *argv[])
     GtkCellRenderer* rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
     GtkTreeViewColumn* tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
     gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
+    //gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
     songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
     g_signal_connect(songSelection,"changed",G_CALLBACK(scroll_to_selection),tvwSongs);
 
@@ -168,8 +170,11 @@ int populateList(char* path)
     DIR *pDir;
 
     //rewinddir(pDir);
-
-    g_object_unref(lsSongs);
+    if(lsSongs != NULL)
+    {
+        g_object_unref(lsSongs);
+    }
+    
 
     lsSongs = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
 
@@ -311,7 +316,7 @@ static void stepSoundPrevious()
     }
 }
 
-static void* musicPlayer(GObject* entryPath)
+static void* musicPlayer(void *entryPath)
 {
     //puts("Music initialization");
     char musicTitle[255];
@@ -342,7 +347,7 @@ static void* musicPlayer(GObject* entryPath)
     closeMusic();
 }
 
-static void* gpioHandling(config *configINI)
+static void* gpioHandling(void *configINI)
 {
     int addButton = atoi(readKey(configINI, "Default", "AddButton"));
     int nextFolder = atoi(readKey(configINI, "Default", "NextFolder"));
