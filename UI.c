@@ -7,11 +7,14 @@
 #include <string.h>
 #include <math.h>
 #include <unistd.h>
+#include <limits.h>
+
 
 #include <gtk/gtk.h>        // UI
 #include <pthread.h>        // Thread
 #include <dirent.h>         // Folder structure
 #include <regex.h>          // Regex
+
 
 #include "pRegex.h"         // Find Match function
 #include "ConfigFile.h"     // Config
@@ -24,75 +27,119 @@
 #define OFF 0
 #define BITS 8
 #define QUEUE_SIZE 255
-#define PATH_LENGTH 255
+#define PATH_LENGTH 1024
 
 //GtkBuilder *builder;
 //GObject *window;
 //GObject *btnFolderUP, *btnFolderDOWN, *btnSongUP, *btnSongDOWN, *btnAddMusic;
 //GObject *entryPath;
-GObject *folderName;
 
-GtkListStore *lsSongs;
-GtkScrolledWindow *songSW;
+typedef struct _MusicBoxUI{
+    GObject *folderName;
+    GtkListStore *lsSongs;
+    GtkScrolledWindow *songSW;
+    GtkTreeView *tvwSongs;
+    GtkTreeSelection *songSelection;
+    GtkTreeIter *actIter;
+
+    config* configINI;
+
+    int currFolderIndex;
+    int currSongIndex;
+    int nrOfFolders;
+    int nrOfSongs;
+
+    char** folderNames;
+    char mainFolder[PATH_LENGTH];
+    char initFolder[PATH_LENGTH];
+    char title[PATH_LENGTH];
+    char musicPath[PATH_LENGTH];
+}MusicBoxUI;
+
+
+//GObject *folderName;
+
+//GtkListStore *lsSongs;
+//GtkScrolledWindow *songSW;
 //GtkAdjustment *listAdjustment;
 
-GtkTreeView *tvwSongs;
+//GtkTreeView *tvwSongs;
 //GtkTreeViewColumn *tvwcTitle;
 //GtkCellRenderer *rndrSong;
-GtkTreeSelection *songSelection;
+//GtkTreeSelection *songSelection;
 //GtkTreeIter iter, nulliter;
 
-GtkTreeIter actIter[255];
+//GtkTreeIter actIter[255];
 
-int currFolderIndex = 0;
-int currSongIndex = 0;
-int nrOfFolders = 0;
-int nrOfSongs = 0;
+//int currFolderIndex = 0;
+//int currSongIndex = 0;
+//int nrOfFolders = 0;
+//int nrOfSongs = 0;
 
-char** folderNames;
-char mainFolder[PATH_LENGTH];
-char initFolder[PATH_LENGTH];
-char title[PATH_LENGTH];
-char musicPath[PATH_LENGTH];
+//char** folderNames;
+//char mainFolder[PATH_LENGTH];
+//char initFolder[PATH_LENGTH];
+//char title[PATH_LENGTH];
+//char musicPath[PATH_LENGTH];
 enum {SONG_COLUMN, N_COLUMNS};
 
 string_Queue_t playlist;
 int run = 1;
 
-int populateList(char* path);
+int populateList(MusicBoxUI* UIData);
 
 static void scroll_to_selection(GtkTreeSelection *selection,gpointer user_data);
-static void stepFolderNext();
-static void stepFolderPrevious();
-static void stepSoundNext();
-static void stepSoundPrevious();
-static void addMusic2Playlist();
+static void stepFolderNext(MusicBoxUI* UIData);
+static void stepFolderPrevious(MusicBoxUI* UIData);
+static void stepSoundNext(MusicBoxUI* UIData);
+static void stepSoundPrevious(MusicBoxUI* UIData);
+static void addMusic2Playlist(MusicBoxUI* UIData);
 
 //static void* musicPlayer(GObject* entryPath);
 static void* musicPlayer(void *entryPath);
 //static void* gpioHandling();
-static void* gpioHandling(void *configINI);
+static void* gpioHandling(MusicBoxUI* UIData);
 
-int readFile(char* argv);
-int getFolders(char* path);
-int addArrayElements(int *intArray, int arraySize);
+int readFile(const char* argv);
+int getFolders(MusicBoxUI* UIData);
+//int addArrayElements(int *intArray, int arraySize);
 
 
 int main(int argc, char *argv[])
 {
     //readFile("config.ini");
+    MusicBoxUI UIData;
+
+    UIData.currFolderIndex = 0;
+    UIData.currSongIndex = 0;
+    UIData.nrOfFolders = 0;
+    UIData.nrOfSongs = 0;
+
+    GtkTreeIter actIter[255];
+    UIData.actIter = actIter;
+
     pthread_t musicTID;
     pthread_t gpioHandlingTID;
     obtain(&playlist, "MusicQueue", 100);
     GError *error = NULL;
 
     config configINI;
+    UIData.configINI = &configINI;
+
     char* filename = "config.ini";
     char* configSection = "Default";
 
+    char configPath[PATH_LENGTH];
+    getcwd(configPath, sizeof(configPath));
+
     //char* configStr = openConfig(filename);
-    char* configStr = openConfig("/home/videeki/Documents/GitRepos/RPIMusicBox/Builds/config.ini");
-    parseConfig(configStr, &configINI);
+    strcat(configPath, "/");
+    strcat(configPath, filename);
+    puts(configPath);
+    strcpy(configPath, "/home/videeki/Documents/GitRepos/RPIMusicBox/Builds/config.ini");
+    puts(configPath);
+    char* configStr = openConfig(configPath);
+    parseConfig(configStr, UIData.configINI);
     closeConfig(configStr);
 
 
@@ -100,7 +147,7 @@ int main(int argc, char *argv[])
 
     /* Construct a GtkBuilder instance and load our UI description */
     GtkBuilder* builder = gtk_builder_new();
-    if (gtk_builder_add_from_file (builder, readKey(&configINI, "Default", "Theme"), &error) == 0)
+    if (gtk_builder_add_from_file (builder, readKey(UIData.configINI, "Default", "Theme"), &error) == 0)
     {
         g_printerr("Error loading file: %s\n", error->message);
         g_clear_error (&error);
@@ -115,45 +162,46 @@ int main(int argc, char *argv[])
     g_object_set_data(G_OBJECT(window), "entryPath", entryPath);
     gtk_entry_set_placeholder_text(GTK_ENTRY(entryPath),"Music Title");
 
-    folderName = gtk_builder_get_object(builder, "folderName");
-    g_object_set_data(G_OBJECT(window), "folderName", folderName);
+    UIData.folderName = gtk_builder_get_object(builder, "folderName");
+    g_object_set_data(G_OBJECT(window), "folderName", UIData.folderName);
 
-    songSW = GTK_SCROLLED_WINDOW(gtk_builder_get_object(builder, "songSW"));
-    tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
+    UIData.songSW = GTK_SCROLLED_WINDOW(gtk_builder_get_object(builder, "songSW"));
+    UIData.tvwSongs = GTK_TREE_VIEW(gtk_builder_get_object(builder, "tvwSongs"));
     GtkCellRenderer* rndrSong = GTK_CELL_RENDERER(gtk_builder_get_object(builder, "rndrSong"));
     GtkTreeViewColumn* tvwcTitle = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "tvwcTitle"));
     gtk_tree_view_column_add_attribute(tvwcTitle, rndrSong, "text", 0);
     //gtk_tree_view_append_column(GTK_TREE_VIEW(tvwSongs), tvwcTitle);
-    songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
-    g_signal_connect(songSelection,"changed",G_CALLBACK(scroll_to_selection),tvwSongs);
+    
+    UIData.songSelection = GTK_TREE_SELECTION(gtk_builder_get_object(builder, "songSelection"));
+    g_signal_connect(UIData.songSelection,"changed",G_CALLBACK(scroll_to_selection),UIData.tvwSongs);
 
 
-    strcpy(mainFolder, readKey(&configINI, configSection, "MusicFolder"));
-    getFolders(mainFolder);
+    strcpy(UIData.mainFolder, readKey(&configINI, configSection, "MusicFolder"));
+    getFolders(&UIData);
 
-    strcpy(initFolder, mainFolder);
-    strcat(initFolder, folderNames[currFolderIndex]);
-    populateList(initFolder);
+    strcpy(UIData.initFolder, UIData.mainFolder);
+    strcat(UIData.initFolder, UIData.folderNames[UIData.currFolderIndex]);
+    populateList(&UIData);
     
 
     GObject* btnFolderUP = gtk_builder_get_object (builder, "btnFolderUP");
-    g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(stepFolderNext), NULL);
+    g_signal_connect(btnFolderUP, "clicked", G_CALLBACK(stepFolderNext), &UIData);
   
     GObject* btnFolderDOWN = gtk_builder_get_object (builder, "btnFolderDOWN");
-    g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(stepFolderPrevious), NULL);
+    g_signal_connect(btnFolderDOWN, "clicked", G_CALLBACK(stepFolderPrevious), &UIData);
 
     GObject* btnSongUP = gtk_builder_get_object (builder, "btnSongUP");
-    g_signal_connect(btnSongUP, "clicked", G_CALLBACK(stepSoundPrevious), NULL);  
+    g_signal_connect(btnSongUP, "clicked", G_CALLBACK(stepSoundPrevious), &UIData);  
 
     GObject* btnSongDOWN = gtk_builder_get_object (builder, "btnSongDOWN");
-    g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(stepSoundNext), NULL);  
+    g_signal_connect(btnSongDOWN, "clicked", G_CALLBACK(stepSoundNext), &UIData);  
 
     GObject* btnAddMusic = gtk_builder_get_object (builder, "btnAddMusic");
-    g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(addMusic2Playlist), NULL);
+    g_signal_connect(btnAddMusic, "clicked", G_CALLBACK(addMusic2Playlist), &UIData);
 
 
     pthread_create(&musicTID, NULL, musicPlayer, (void*)entryPath);
-    pthread_create(&gpioHandlingTID, NULL, gpioHandling, (void*)&configINI);
+    pthread_create(&gpioHandlingTID, NULL, gpioHandling, (MusicBoxUI*)&UIData);
 
 
     gtk_main ();
@@ -163,26 +211,36 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-int populateList(char* path)
+int populateList(MusicBoxUI* UIData)
 {
     GtkTreeIter iter;
     struct dirent *pDirent;
     DIR *pDir;
+    int doNothing = 0;
+
+    int i = 0;
+    for(i =0; i < 255; i++)
+    {
+        UIData->actIter[i].stamp = 0;
+        UIData->actIter[i].user_data = 0;
+        UIData->actIter[i].user_data2 = 0;
+        UIData->actIter[i].user_data3 = 0;
+    }
 
     //rewinddir(pDir);
-    if(lsSongs != NULL)
+    if(UIData->lsSongs != NULL)
     {
-        g_object_unref(lsSongs);
+        g_object_unref(UIData->lsSongs);
     }
     
 
-    lsSongs = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
+    UIData->lsSongs = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
 
     // Ensure we can open directory.
-    pDir = opendir (path);
+    pDir = opendir (UIData->initFolder);
     if(pDir == NULL)
     {
-        printf("Cannot open directory '%s'\n", path);
+        printf("Cannot open directory '%s'\n", UIData->initFolder);
     }
     else
     {   
@@ -191,31 +249,37 @@ int populateList(char* path)
         {   
             if(strstr(pDirent->d_name, ".mp3"))
             {
-                gtk_list_store_append(lsSongs, &iter);
-                gtk_list_store_set(lsSongs, &iter, SONG_COLUMN, pDirent->d_name, -1);
-                actIter[i] = iter;
+                gtk_list_store_append(UIData->lsSongs, &iter);
+                gtk_list_store_set(UIData->lsSongs, &iter, SONG_COLUMN, pDirent->d_name, -1);
+                UIData->actIter[i] = iter;
                 i++;
             }
         }
-        nrOfSongs = i - 1;
+        UIData->nrOfSongs = i - 1;
 
         rewinddir(pDir);
         
-        closedir (pDir);
+        closedir(pDir);
 
-        gtk_tree_view_set_model(GTK_TREE_VIEW(tvwSongs), GTK_TREE_MODEL(lsSongs));
+        gtk_tree_view_set_model(GTK_TREE_VIEW(UIData->tvwSongs), GTK_TREE_MODEL(UIData->lsSongs));
 
 
         //gtk_tree_model_get_iter_first(GTK_TREE_MODEL(lsSongs), &nulliter);
-        currSongIndex = 0;
-        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+        UIData->currSongIndex = 0;
+        if(i != 0)
+        {
+            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(UIData->songSelection), &UIData->actIter[UIData->currSongIndex]);
 
-        gchar *value;
-        gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+            gchar *value;
+            GtkTreeIter* actIterTemp;
+            memcpy(actIterTemp, &UIData->actIter[UIData->currSongIndex], sizeof(typeof(GtkTreeIter)));
+            gtk_tree_model_get(GTK_TREE_MODEL(UIData->lsSongs), actIterTemp, 0, &value, -1);
+            puts(value);
 
-        strcpy(musicPath, value);
+            strcpy(UIData->musicPath, value);
 
-        gtk_scrolled_window_get_vadjustment(songSW);
+            gtk_scrolled_window_get_vadjustment(UIData->songSW);
+        }
 
     }
     
@@ -238,81 +302,82 @@ static void scroll_to_selection(GtkTreeSelection *selection,gpointer user_data)
     }
 }
 
-static void addMusic2Playlist()
+static void addMusic2Playlist(MusicBoxUI* UIData)
 {
-    strcpy(title, initFolder);
-    strcat(title, "/");
-    strcat(title, musicPath);
-    enqueue(&playlist, title);
+    strcpy(UIData->title, UIData->initFolder);
+    strcat(UIData->title, "/");
+    strcat(UIData->title, UIData->musicPath);
+    enqueue(&playlist, UIData->title);
 }
 
-static void stepFolderNext()
+static void stepFolderNext(MusicBoxUI* UIData)
 {   
-    currFolderIndex++;
-    if(currFolderIndex <= nrOfFolders)
-    {
-        strcpy(initFolder, mainFolder);
-        gtk_entry_set_text(GTK_ENTRY(folderName), folderNames[currFolderIndex]);
-        strcat(initFolder, folderNames[currFolderIndex]);
+    UIData->currFolderIndex++;
+    if(UIData->currFolderIndex <= UIData->nrOfFolders - 1)
+    {   
+        printf("Folder number: %d Number of folders: %d\n", UIData->currFolderIndex, UIData->nrOfFolders);
+        strcpy(UIData->initFolder, UIData->mainFolder);
+        gtk_entry_set_text(GTK_ENTRY(UIData->folderName), UIData->folderNames[UIData->currFolderIndex]);
+        strcat(UIData->initFolder, UIData->folderNames[UIData->currFolderIndex]);
 
-        populateList(initFolder);
+        populateList(UIData);
     }
     else
     {
-        currFolderIndex--;
+        UIData->currFolderIndex--;
     }
 }
 
-static void stepFolderPrevious()
+static void stepFolderPrevious(MusicBoxUI* UIData)
 {
-    currFolderIndex--;
-    if(currFolderIndex >= 0)
+    UIData->currFolderIndex--;
+    if(UIData->currFolderIndex >= 0)
     {
-        strcpy(initFolder, mainFolder);
-        gtk_entry_set_text(GTK_ENTRY(folderName), folderNames[currFolderIndex]);
-        strcat(initFolder, folderNames[currFolderIndex]);
+        strcpy(UIData->initFolder, UIData->mainFolder);
+        gtk_entry_set_text(GTK_ENTRY(UIData->folderName), UIData->folderNames[UIData->currFolderIndex]);
+        strcat(UIData->initFolder, UIData->folderNames[UIData->currFolderIndex]);
 
-        populateList(initFolder);
+        populateList(UIData);
     }
     else
     {
-        currFolderIndex = 0;
+        UIData->currFolderIndex = 0;
     }
 }
 
-static void stepSoundNext()
+static void stepSoundNext(MusicBoxUI* UIData)
 {   
-    currSongIndex++;
-    if(currSongIndex <= nrOfSongs)
+    UIData->currSongIndex++;
+    if(UIData->currSongIndex <= UIData->nrOfSongs)
     {
-        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(UIData->songSelection), &UIData->actIter[UIData->currSongIndex]);
 
         gchar *value;
-        gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+        gtk_tree_model_get(GTK_TREE_MODEL(UIData->lsSongs), &UIData->actIter[UIData->currSongIndex], 0, &value, -1);
 
-        strcpy(musicPath, value);
+        strcpy(UIData->musicPath, value);
     }
     else
     {
-        currSongIndex--;
+        UIData->currSongIndex--;
     }
 }
 
-static void stepSoundPrevious()
+static void stepSoundPrevious(MusicBoxUI* UIData)
 {   
-    currSongIndex--;
-    if(currSongIndex >= 0)
+    UIData->currSongIndex--;
+    if(UIData->currSongIndex >= 0)
     {
-        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(songSelection), &actIter[currSongIndex]);
+        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(UIData->songSelection), &UIData->actIter[UIData->currSongIndex]);
 
         gchar *value;
-        gtk_tree_model_get(GTK_TREE_MODEL(lsSongs), &actIter[currSongIndex], 0, &value, -1);
+        gtk_tree_model_get(GTK_TREE_MODEL(UIData->lsSongs), &UIData->actIter[UIData->currSongIndex], 0, &value, -1);
 
-        strcpy(musicPath, value);
+        strcpy(UIData->musicPath, value);
     }
     else
     {
-        currSongIndex = 0;
+        UIData->currSongIndex = 0;
     }
 }
 
@@ -347,13 +412,13 @@ static void* musicPlayer(void *entryPath)
     closeMusic();
 }
 
-static void* gpioHandling(void *configINI)
+static void* gpioHandling(MusicBoxUI* UIData)
 {
-    int addButton = atoi(readKey(configINI, "Default", "AddButton"));
-    int nextFolder = atoi(readKey(configINI, "Default", "NextFolder"));
-    int prevFolder = atoi(readKey(configINI, "Default", "PreviousFolder"));
-    int nextSong = atoi(readKey(configINI, "Default", "NextSong"));
-    int prevSong = atoi(readKey(configINI, "Default", "PreviousSong"));
+    int addButton = atoi(readKey(UIData->configINI, "Default", "AddButton"));
+    int nextFolder = atoi(readKey(UIData->configINI, "Default", "NextFolder"));
+    int prevFolder = atoi(readKey(UIData->configINI, "Default", "PreviousFolder"));
+    int nextSong = atoi(readKey(UIData->configINI, "Default", "NextSong"));
+    int prevSong = atoi(readKey(UIData->configINI, "Default", "PreviousSong"));
 
     puts("Start, polling");
     //struct gpiohandle_request req;
@@ -366,7 +431,7 @@ static void* gpioHandling(void *configINI)
 
     while (run)
     {   
-        detectButtonAction(&req, regPINSValeus, 100);
+        detectButtonAction(&req, regPINSValeus, 200);
 
         int sum = 0;
         for(i = 0; i < req.lines; i++)
@@ -379,31 +444,36 @@ static void* gpioHandling(void *configINI)
         {
             case 1:     //addMusic2Playlist
             {
-                addMusic2Playlist();
+                addMusic2Playlist(UIData);
+                //G_CALLBACK(addMusic2Playlist);
                 break;
             }
 
             case 2:     //stepFolderNext
             {
-                stepFolderNext();
+                stepFolderNext(UIData);
+                //G_CALLBACK(stepFolderNext);
                 break;
             }
 
             case 4:     //stepFolderPrevious
             {
-                stepFolderPrevious();
+                stepFolderPrevious(UIData);
+                //G_CALLBACK(stepFolderPrevious);
                 break;
             }
 
             case 8:     //stepSoundNext
             {
-                stepSoundNext();
+                stepSoundNext(UIData);
+                //G_CALLBACK(stepSoundNext);
                 break;
             }
 
             case 16:    //stepSoundPrevious
             {
-                stepSoundPrevious();
+                stepSoundPrevious(UIData);
+                //G_CALLBACK(stepSoundPrevious);
                 break;
             }
 
@@ -422,7 +492,7 @@ static void* gpioHandling(void *configINI)
     closeGPIO(&req);
 }
 
-int readFile(char* argv)
+int readFile(const char* argv)
 {
     FILE *fp;
     char *str;
@@ -456,41 +526,45 @@ int readFile(char* argv)
     return 0;
 }
 
-int getFolders(char* path)
+int getFolders(MusicBoxUI* UIData)
 {
     struct dirent *pDirent;
     DIR *pDir;
 
     //rewinddir(pDir);
 
-    pDir = opendir (path);
+    pDir = opendir (UIData->mainFolder);
     if (pDir == NULL)
     {
-        printf ("Cannot open directory '%s'\n", path);
+        printf ("Cannot open directory '%s'\n", UIData->mainFolder);
         return 1;
     }
 
     int i = 0;
     // Process each entry.
-    while ((pDirent = readdir(pDir)) != NULL)
+    while((pDirent = readdir(pDir)) != NULL)
     {
-        i++;
+        if(pDirent->d_name[0] != '.')
+        {
+            i++;
+        }
     }
-    nrOfFolders = i;
+    UIData->nrOfFolders = i;
+    printf("Number of folders: %d\n", UIData->nrOfFolders);
 
     rewinddir(pDir);
     
-    folderNames = (char**)malloc(i * sizeof(char*));  
+    UIData->folderNames = (char**)malloc(i * sizeof(char*));  
     int j = 0;
     char dirName[255];
     while ((pDirent = readdir(pDir)) != NULL)
     {   
         strcpy(dirName, pDirent->d_name);
         int foundDot = strcspn(dirName, ".");
-        if(foundDot == strlen(dirName) && foundDot != 1)
+        if(pDirent->d_name[0] != '.')
         {
-            folderNames[j] = (char*)malloc(strlen(dirName) * sizeof(char*));
-            strcpy(folderNames[j], dirName);
+            UIData->folderNames[j] = (char*)malloc(strlen(dirName) * sizeof(char*));
+            strcpy(UIData->folderNames[j], dirName);
             j++;
         }
     }
@@ -499,7 +573,7 @@ int getFolders(char* path)
     return i;
 }
 
-int addArrayElements(int *intArray, int arraySize)
+/*int addArrayElements(int *intArray, int arraySize)
 {
     int i;
     int sum = 0;
@@ -511,3 +585,4 @@ int addArrayElements(int *intArray, int arraySize)
 
     return sum;
 }
+*/
