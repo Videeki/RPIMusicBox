@@ -28,6 +28,7 @@ char* openConfig(char* iniPath)
     return configStr;
 }
 
+
 int parseConfig(char* configStr, config* parsedConfig)
 {
     int i = 0;
@@ -75,6 +76,7 @@ int parseConfig(char* configStr, config* parsedConfig)
     return 0;
 }
 
+
 int closeConfig(char* configStr)
 {
     free(configStr);
@@ -107,22 +109,12 @@ char* readKey(config* parsedConfig, char* section, char* key)
     return parsedConfig->sections[i - 1].keyvalue[j - 1].value;
 }
 
+
 int writeKey(config* parsedConfig, char* section, char* key, char* value)
 {
     return 0;
 }
 
-char** getSectionNames(config* parseConfig)
-{
-    char* sectionNames[1] = {"getSectionNames is not implemented yet"};
-    return sectionNames;
-}
-
-char** getKeyNames(config* parseConfig, char* section)
-{
-    char* keyNames[1] = {"getKeyNames is not implemented yet"};
-    return keyNames;
-}
 
 void trim(char *str)
 {

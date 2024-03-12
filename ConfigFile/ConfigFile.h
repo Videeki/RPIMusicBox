@@ -37,8 +37,6 @@ int closeConfig(char* configStr);
 
 char* readKey(config* parsedConfig, char* section, char* key);
 int writeKey(config* parsedConfig, char* section, char* key, char* value);
-char** getSectionNames(config* parseConfig);
-char** getKeyNames(config* parseConfig, char* section);
 
 void trim(char *str);
 
