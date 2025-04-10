@@ -1,0 +1,3 @@
+cd .\PlayMusic
+gcc -c .\PlayMusic.c -o .\Builds\PlayMusic.o -IPlayMusic -lwinmm
+cd ..

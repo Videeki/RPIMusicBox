@@ -56,31 +56,6 @@ typedef struct _MusicBoxUI{
     char musicPath[PATH_LENGTH];
 }MusicBoxUI;
 
-
-//GObject *folderName;
-
-//GtkListStore *lsSongs;
-//GtkScrolledWindow *songSW;
-//GtkAdjustment *listAdjustment;
-
-//GtkTreeView *tvwSongs;
-//GtkTreeViewColumn *tvwcTitle;
-//GtkCellRenderer *rndrSong;
-//GtkTreeSelection *songSelection;
-//GtkTreeIter iter, nulliter;
-
-//GtkTreeIter actIter[255];
-
-//int currFolderIndex = 0;
-//int currSongIndex = 0;
-//int nrOfFolders = 0;
-//int nrOfSongs = 0;
-
-//char** folderNames;
-//char mainFolder[PATH_LENGTH];
-//char initFolder[PATH_LENGTH];
-//char title[PATH_LENGTH];
-//char musicPath[PATH_LENGTH];
 enum {SONG_COLUMN, N_COLUMNS};
 
 string_Queue_t playlist;
@@ -563,7 +538,7 @@ int getFolders(MusicBoxUI* UIData)
         int foundDot = strcspn(dirName, ".");
         if(pDirent->d_name[0] != '.')
         {
-            UIData->folderNames[j] = (char*)malloc(strlen(dirName) * sizeof(char*));
+            UIData->folderNames[j] = (char*)malloc((strlen(dirName) + 1) * sizeof(char*));
             strcpy(UIData->folderNames[j], dirName);
             j++;
         }

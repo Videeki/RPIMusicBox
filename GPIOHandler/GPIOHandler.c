@@ -1,132 +1,7 @@
-// Compiling: gcc GPIOHandler.c -o Builds/GPIOHandler
 #include "GPIOHandler.h"
 
 
-int initPIN(int pinNr)
-{
-    #ifdef _WIN32
-	printf("The GPIO Handling has not implemented yet on Windows.\n");
-
-    #elif __linux__
-    char initPin[33];
-    FILE *export;
-    export = fopen("/sys/class/gpio/export", "w");
-
-    if (export == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(export, "%d", pinNr);
-    fclose(export);
-
-    sleep(1);
-
-    #endif
-
-    return 0;
-}
-
-int setupPIN(int pinNr, char *mode)
-{
-    #ifdef _WIN32
-	printf("The GPIO Handling has not implemented yet on Windows.\n");
-
-    #elif __linux__
-    char setupPin[50];
-    FILE *direction;
-    sprintf(setupPin, "/sys/class/gpio/gpio%d/direction", pinNr);
-    direction = fopen(setupPin, "w");
-
-    if (direction == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(direction, "%s", mode);
-    fclose(direction);
-    
-    #endif
-
-    return 0;
-}
-
-int writePIN(int pinNr, int value)
-{
-    #ifdef _WIN32
-	printf("The GPIO Handling has not implemented yet on Windows.\n");
-
-    #elif __linux__
-    char pinPath[50];
-    FILE *writePin;
-    sprintf(pinPath, "/sys/class/gpio/gpio%d/value", pinNr);
-    writePin = fopen(pinPath, "w");
-
-    if (writePin == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(writePin, "%d", value);
-    fclose(writePin);
-    
-    #endif
-
-    return 0;
-}
-
-int readPIN(int pinNr)
-{
-    #ifdef _WIN32
-    int value;
-	printf("The GPIO Handling has not implemented yet on Windows.\n");
-
-    #elif __linux__
-    int value;
-    char pinPath[50];
-    FILE *readPin;
-    sprintf(pinPath, "/sys/class/gpio/gpio%d/value", pinNr);
-    
-    readPin = fopen(pinPath, "r");
-    
-    if (readPin == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fscanf(readPin, "%d", &value);
-    
-    fclose(readPin);
-    
-    #endif
-
-    return value;
-}
-
-int deinitPIN(int pinNr)
-{
-    #ifdef _WIN32
-	printf("The GPIO Handling has not implemented yet on Windows.\n");
-
-    #elif __linux__
-    char deinitPin[35];
-    FILE *unexport;
-    unexport = fopen("/sys/class/gpio/unexport", "w");
-
-    if (unexport == NULL) {
-        perror("Error while opening the file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(unexport, "%d", pinNr);
-    fclose(unexport);
-
-    #endif
-
-    return 0;
-}
-
-int initGPIO(refStruct* rq, int pins[], int nrOfPins, int direction)
+int initGPIO(GPIO* rq, int pins[], int nrOfPins, int direction)
 {
     #ifdef _WIN32
     int ret = 0;
@@ -137,7 +12,7 @@ int initGPIO(refStruct* rq, int pins[], int nrOfPins, int direction)
     int fd, ret, i;
     // open the device
     fd = open(DEV_NAME, O_RDONLY);
-    if (fd < 0)
+    if(fd < 0)
     {
         printf("Unabled to open %s: %s", DEV_NAME, strerror(errno));
         return fd;
@@ -164,7 +39,8 @@ int initGPIO(refStruct* rq, int pins[], int nrOfPins, int direction)
     return ret;
 }
 
-int writeGPIO(refStruct* rq, int* values)
+
+int writeGPIO(GPIO* rq, int* values)
 {
     #ifdef _WIN32
     int ret = 0;
@@ -194,7 +70,8 @@ int writeGPIO(refStruct* rq, int* values)
     return ret;
 }
 
-int readGPIO(refStruct* rq, int* values)
+
+int readGPIO(GPIO* rq, int* values)
 {
     #ifdef _WIN32
     int ret = 0;
@@ -223,6 +100,7 @@ int readGPIO(refStruct* rq, int* values)
 
     return ret;
 }
+
 
 int pollGPIO(int offset)
 {
@@ -276,14 +154,17 @@ int pollGPIO(int offset)
     return ret;
 }
 
-int detectButtonAction(refStruct* rq, int* values, int msdelay)
+
+int detectButtonAction(GPIO* rq, int msdelay)
 {
     #ifdef _WIN32
     int ret = 0;
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
+    return ret;
 
     #elif __linux__
     int nrOfPins = rq->lines;
+    int values[nrOfPins];
     int ctrlPINSValues[nrOfPins];
     int ret, i, sum;
  
@@ -314,7 +195,7 @@ int detectButtonAction(refStruct* rq, int* values, int msdelay)
             pushed = 1;
             do
             {
-                readGPIO(rq, ctrlPINSValues);
+                ret = readGPIO(rq, ctrlPINSValues);
                 if (ret == -1)
                 {
                     return ret;
@@ -335,18 +216,157 @@ int detectButtonAction(refStruct* rq, int* values, int msdelay)
             }while(released != 1);
         }
     }while(pushed != 1 && released != 1);
-    #endif
 
-    return ret; 
+    sum = 0;
+    for(int i = 0; i < nrOfPins; i++)
+    {
+        values[i] *= (int)pow(2.0, (double)i);
+        sum += values[i];
+    }
+
+    return sum;
+    #endif
 }
 
-int closeGPIO(refStruct* rq)
+
+int closeGPIO(GPIO* rq)
 {
     #ifdef _WIN32
 	printf("The GPIO Handling has not implemented yet on Windows.\n");
 
     #elif __linux__    
     close(rq->fd);
+    #endif
+
+    return 0;
+}
+
+
+
+
+int initPIN(int pinNr)
+{
+    #ifdef _WIN32
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    char initPin[33];
+    FILE *export;
+    export = fopen("/sys/class/gpio/export", "w");
+
+    if (export == NULL) {
+        perror("Error while opening the file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(export, "%d", pinNr);
+    fclose(export);
+
+    sleep(1);
+
+    #endif
+
+    return 0;
+}
+
+
+int setupPIN(int pinNr, char *mode)
+{
+    #ifdef _WIN32
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    char setupPin[50];
+    FILE *direction;
+    sprintf(setupPin, "/sys/class/gpio/gpio%d/direction", pinNr);
+    direction = fopen(setupPin, "w");
+
+    if (direction == NULL) {
+        perror("Error while opening the file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(direction, "%s", mode);
+    fclose(direction);
+    
+    #endif
+
+    return 0;
+}
+
+
+int writePIN(int pinNr, int value)
+{
+    #ifdef _WIN32
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    char pinPath[50];
+    FILE *writePin;
+    sprintf(pinPath, "/sys/class/gpio/gpio%d/value", pinNr);
+    writePin = fopen(pinPath, "w");
+
+    if (writePin == NULL) {
+        perror("Error while opening the file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(writePin, "%d", value);
+    fclose(writePin);
+    
+    #endif
+
+    return 0;
+}
+
+
+int readPIN(int pinNr)
+{
+    #ifdef _WIN32
+    int value;
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    int value;
+    char pinPath[50];
+    FILE *readPin;
+    sprintf(pinPath, "/sys/class/gpio/gpio%d/value", pinNr);
+    
+    readPin = fopen(pinPath, "r");
+    
+    if (readPin == NULL) {
+        perror("Error while opening the file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fscanf(readPin, "%d", &value);
+    
+    fclose(readPin);
+    
+    #endif
+
+    return value;
+}
+
+
+int deinitPIN(int pinNr)
+{
+    #ifdef _WIN32
+	printf("The GPIO Handling has not implemented yet on Windows.\n");
+
+    #elif __linux__
+    char deinitPin[35];
+    FILE *unexport;
+    unexport = fopen("/sys/class/gpio/unexport", "w");
+
+    if (unexport == NULL) {
+        perror("Error while opening the file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(unexport, "%d", pinNr);
+    fclose(unexport);
+
     #endif
 
     return 0;

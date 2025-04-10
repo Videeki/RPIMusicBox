@@ -14,7 +14,7 @@
 		int* pins;
 	}hw;
 
-	#define refStruct hw
+	#define GPIO hw
 	#define DEV_NAME "ExternalDevice"
 
 #elif __linux__
@@ -22,7 +22,7 @@
 	#include <sys/ioctl.h>
 	#include <sys/poll.h>
 
-	#define refStruct struct gpiohandle_request
+	#define GPIO struct gpiohandle_request
 	#define DEV_NAME "/dev/gpiochip0"
 
 #endif
@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <math.h>
 
 #define ON 1
 #define OFF 0
@@ -42,17 +43,17 @@
 #define INPUT 0
 #define OUTPUT 1
 
+int initGPIO(GPIO* rq, int pins[], int nrOfPins, int direction);
+int writeGPIO(GPIO* rq, int* values);
+int readGPIO(GPIO* rq, int* values);
+int pollGPIO(int offset);
+int detectButtonAction(GPIO* rq, int msdelay);
+int closeGPIO(GPIO* rq);
+
 int initPIN(int pinNr);
 int setupPIN(int pinNr, char *mode);
 int writePIN(int pinNr, int value);
 int readPIN(int pinNr);
 int deinitPIN(int pinNr);
-
-int initGPIO(refStruct* rq, int pins[], int nrOfPins, int direction);
-int writeGPIO(refStruct* rq, int* values);
-int readGPIO(refStruct* rq, int* values);
-int pollGPIO(int offset);
-int detectButtonAction(refStruct* rq, int* values, int msdelay);
-int closeGPIO(refStruct* rq);
 
 #endif	/* GPIOHANDLER_H */
