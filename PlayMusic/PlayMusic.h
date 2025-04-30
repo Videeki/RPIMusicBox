@@ -15,7 +15,7 @@
 
 #elif __linux__
 	#include <ao/ao.h>
-    #include <mpg123.h>
+    #include <mpg123/mpg123.h>
     #define BITS 8
 
 #else

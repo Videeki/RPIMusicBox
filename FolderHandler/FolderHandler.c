@@ -1,7 +1,31 @@
 #include "FolderHandler.h"
-
+#include "debugmalloc.h"
 
 //gcc -c .\FolderHandler.c -o .\bin\FolderHandler.o -IFolderHandler -\FolderHandler.h "-IC:/msys64/mingw64/include/glib-2.0" "-IC:/msys64/mingw64/lib/glib-2.0/include" "-lglib-2.0"
+GString* path_Join(GString* string, ...)
+{
+    va_list join;
+    va_start(join, string);
+    char separator;
+    #ifdef _WIN32
+        separator = '\\';
+    #else
+        separator = '/';
+    #endif
+
+    const gchar* temp;
+    while(temp = va_arg(join, char*))
+    {
+        if(string->str[string->len-1] != separator)
+        {
+            string = g_string_append_c_inline(string, separator);
+        }
+        string = g_string_append(string, g_strdup(temp));
+    }
+    va_end(join);
+
+    return string;
+}
 
 
 GList* listFolderElements(GList* listElements, const char* path, const char* exp)
@@ -72,8 +96,14 @@ gboolean endsWith(const gchar* str, const gchar* exp)
     return TRUE;
 }
 
-
 /**********************************************     Main     **********************************************
+
+typedef struct
+{
+    GList* musicFolder;
+    GList* folderElements;
+} Data;
+
 
 int main(int argc, char* argv[])
 {
@@ -84,23 +114,25 @@ int main(int argc, char* argv[])
     }
     printf("FolderHandling is running...\n");
 
-    //int ret = listFolderItems(argv[1], "mp3");
-    //printf("FolderHandling is DONE: %d\n", ret);
+    Data foo; 
 
-    //printf("End of %s is exe: %s\n", argv[0], (endsWith(argv[0], ".exe") ? "TRUE" : "FALSE"));
+    foo.folderElements = NULL;
+    //GList* folderElements = NULL;
+    GString* path = g_string_new(g_strdup(argv[1]));
+    path = path_Join(path, "Music", "Vegyes", NULL);
 
-    GList* folderElements = NULL;
+    printf("Path: %s\n", path->str);
+    foo.folderElements = listFolderElements(foo.folderElements, path->str, NULL);
     
-    folderElements = listFolderElements(folderElements, argv[1], NULL);
-    
+    g_string_free(path, TRUE);
     int i = 0;
-    for(const GList* element = folderElements; element != NULL; element = element->next)
+    for(const GList* element = foo.folderElements; element != NULL; element = element->next)
     {
         i++;
-        printf("%d. song: %s\n", i, element->data);
+        printf("%d. song: %s\n", i, (char*)element->data);
     }
     
-    g_list_free(folderElements);
+    g_list_free(foo.folderElements);
 
     return 0;
 }

@@ -1,3 +1,10 @@
+/****************************************************************************/
+/*                                                                          */
+/*  gcc main.c -o .\Builds\RPIMusicBox -ICLIHandler .\CLIHandler\Builds\CLIHandler.o -IFolderHandler .\FolderHandler\Builds\FolderHandler.o -IGPIOHandler .\GPIOHandler\Builds\GPIOHandler.o -IPlayMusic .\PlayMusic\Builds\PlayMusic.o "-IC:/msys64/mingw64/include/glib-2.0" "-IC:/msys64/mingw64/lib/glib-2.0/include" "-lglib-2.0" -lwinmm
+/*                                                                          */
+/****************************************************************************/
+
+
 #include <stdio.h>
 //#include <gtk/gtk.h>        // UI
 #include <glib.h>
@@ -8,43 +15,42 @@
 
 #include "CLIHandler/CLIHandler.h"
 
-typedef struct UIData
+#include "Debug/debugmalloc.h"
+
+typedef struct MusicBoxData
 {
-    GString* projectFolder;
-    GString* musicFolder;
+    GString* projectFolderPath;
+    GString* musicFolderPath;
+    GList* musicFolders;
+    GString* actFolderPath;
+    GList* actFolderContent;
+    GQueue* playQueue;
+    GString* actMusic;
+    GPIO* gpio;
+    gboolean stop;
 
-}UIData;
+}MBData;
 
-void stepFolderNext(MusicBoxUI* UIData);
-void stepFolderPrevious(MusicBoxUI* UIData);
-void stepSoundNext(MusicBoxUI* UIData);
-void stepSoundPrevious(MusicBoxUI* UIData);
-void addMusic2Playlist(MusicBoxUI* UIData);
+void stepFolderNext(MBData* data);
+void stepFolderPrevious(MBData* data);
+void stepSoundNext(MBData* data);
+void stepSoundPrevious(MBData* data);
+void addMusic2Playlist(MBData* data);
 
 
 int main(int argc, char* argv[])
 {
-    #ifdef _WIN32
-        system("chcp 65001");
-    #endif
-
     if(argc < 2)
     {
         g_printerr("There are less parameter added what required\n");
         return -1;
     }
 
-    //const gchar *file_path = "C:\\Users\\Videeki\\Documents\\GitRepos\\RPIMusicBox\\Builds\\config.ini";
-    
     GKeyFile *key_file;
     GError *error = NULL;
-    GQueue *playlist = g_queue_new();
 
-    // Create a new GKeyFile
+    printf("Create a new GKeyFile and Load the configuration file\n");
     key_file = g_key_file_new();
-
-    // Load the configuration file
-    //if(!g_key_file_load_from_file(key_file, file_path, G_KEY_FILE_NONE, &error))
     if(!g_key_file_load_from_file(key_file, argv[1], G_KEY_FILE_NONE, &error))
     {
         if(error)
@@ -56,16 +62,37 @@ int main(int argc, char* argv[])
         return -2;
     }
 
-    GString* mfoldPath = g_string_new(NULL);
-    mfoldPath = g_string_append(mfoldPath, g_key_file_get_string(key_file, "Default", "MusicFolder", &error));
+    MBData data;
 
-    GList* trackList = listFolderElements(trackList, mfoldPath->str, NULL);
+    data.stop = FALSE;
+    printf("Get musicFolderPath\n");
 
-    g_string_free(mfoldPath, TRUE);
+    data.musicFolderPath = g_string_new(g_key_file_get_string(key_file, "Default", "MusicFolder", &error));
+    debugmalloc_dump();
+    printf("Get music folders\n");
+    data.musicFolders = NULL;
+    data.musicFolders = listFolderElements(data.musicFolders, data.musicFolderPath->str, NULL);
+    debugmalloc_dump();
 
-    pthread_t musicTID;
-    pthread_t gpioHandlingTID;
+    printf("Init queue\n");
+    data.playQueue = g_queue_new();
 
+    int ctrlPINS[5];
+    ctrlPINS[0] = g_key_file_get_integer(key_file, "Default", "AddButton", &error);
+    ctrlPINS[1] = g_key_file_get_integer(key_file, "Default", "NextFolder", &error);
+    ctrlPINS[2] = g_key_file_get_integer(key_file, "Default", "PreviousFolder", &error);
+    ctrlPINS[3] = g_key_file_get_integer(key_file, "Default", "NextSong", &error);
+    ctrlPINS[4] = g_key_file_get_integer(key_file, "Default", "PreviousSong", &error);
+
+    printf("Init GPIO\n");
+    GPIO gpio;
+    initGPIO(&gpio, ctrlPINS, 5, GPIO_INPUT);
+    data.gpio = &gpio;
+
+    //pthread_t musicTID;
+    //pthread_t gpioHandlingTID;
+    //pthread_create(&musicTID, NULL, musicPlayer, (MBData*)&data);
+    //pthread_create(&gpioHandlingTID, NULL, gpioHandling, (MBData*)&data);
 
     if (!isatty(fileno(stdin)))
     {
@@ -86,139 +113,142 @@ int main(int argc, char* argv[])
     }
     else
     {
-        GString* dboardPath = g_string_new(NULL);
-        dboardPath = g_string_append(dboardPath, g_key_file_get_string(key_file, "CLI", "Dashboard", &error));
-        initCLIDashboard(dboardPath->str);
-        g_string_free(dboardPath, TRUE);
+        printf("CLIInit\n");
+        CLIInit(g_key_file_get_string(key_file, "Default", "MusicFolder", &error));
+        debugmalloc_dump();
+        g_key_file_free(key_file);
+        debugmalloc_dump();
+        data.actFolderPath = g_string_new(g_strdup(data.musicFolderPath->str));
+        data.actFolderPath = path_Join(data.actFolderPath, g_strdup(data.actMusic->str), NULL);
 
-        GString* charString = g_string_new(NULL);
-        charString = g_string_append(charString, g_key_file_get_string(key_file, "CLI", "ASCIIart", &error));
-        char* separator = g_key_file_get_string(key_file, "CLI", "Separator", &error);
-        
-        GList* charList = parseChararcterType(charList, charString->str, separator);
-        g_string_free(charString, TRUE);
-    
-        //updateCLITrack(charList, "ABCDEFGHIJKLMNOPQRST");
-        //updateCLIAlbum(charList, "abcdefghijklmnopqrst");
-        //updateCLITrackList(trackList);
-        getchar();
-        
-        g_list_free(charList);
+        data.actFolderContent = NULL;
+        data.actFolderContent = listFolderElements(data.actFolderContent, data.actFolderPath->str, "mp3");
+
+        CLIUpdateTrack("Hello, world!");
+        CLIUpdateAlbum("Darkness");
+
+        CLIUpdateTrackList(data.actFolderContent);
+
+        //CLIMainloop();
+
+        CLIClose();
     }
-    pthread_create(&musicTID, NULL, musicPlayer, (void*)entryPath);
-    pthread_create(&gpioHandlingTID, NULL, gpioHandling, (MusicBoxUI*)&UIData);
 
+    GString* projectFolderPath;
+    GString* musicFolderPath;
+    GList* musicFolders;
+    GString* actFolderPath;
+    GList* actFolderContent;
+    GQueue* playQueue;
     
-
-    g_key_file_free(key_file);
-    g_list_free(trackList);
-    g_queue_free(playlist);
+    g_string_free(data.projectFolderPath, TRUE);
+    g_string_free(data.musicFolderPath, TRUE);
+    g_string_free(data.actFolderPath, TRUE);
+    g_string_free(data.actMusic, TRUE);
+    g_list_free(data.musicFolders);
+    g_list_free(data.actFolderContent);
+    g_queue_free(data.playQueue);
+    closeGPIO(data.gpio);
     return 0;
 }
 
 
-void addMusic2Playlist(MusicBoxUI* UIData)
+void addMusic2Playlist(MBData* data)
 {
-    strcpy(UIData->title, UIData->initFolder);
-    strcat(UIData->title, "/");
-    strcat(UIData->title, UIData->musicPath);
-    enqueue(&playlist, UIData->title);
+    g_queue_push_head(data->playQueue, g_strdup(data->actMusic->str));
 }
 
-void stepFolderNext(MusicBoxUI* UIData)
+
+void stepFolderNext(MBData* data)
 {   
-    UIData->currFolderIndex++;
-    if(UIData->currFolderIndex <= UIData->nrOfFolders - 1)
-    {   
-        printf("Folder number: %d Number of folders: %d\n", UIData->currFolderIndex, UIData->nrOfFolders);
-        strcpy(UIData->initFolder, UIData->mainFolder);
-        gtk_entry_set_text(GTK_ENTRY(UIData->folderName), UIData->folderNames[UIData->currFolderIndex]);
-        strcat(UIData->initFolder, UIData->folderNames[UIData->currFolderIndex]);
-
-        populateList(UIData);
-    }
-    else
-    {
-        UIData->currFolderIndex--;
-    }
+    //UIData->currFolderIndex++;
+    //if(UIData->currFolderIndex <= UIData->nrOfFolders - 1)
+    //{   
+    //    printf("Folder number: %d Number of folders: %d\n", UIData->currFolderIndex, UIData->nrOfFolders);
+    //    strcpy(UIData->initFolder, UIData->mainFolder);
+    //    gtk_entry_set_text(GTK_ENTRY(UIData->folderName), UIData->folderNames[UIData->currFolderIndex]);
+    //    strcat(UIData->initFolder, UIData->folderNames[UIData->currFolderIndex]);
+    //
+    //    populateList(UIData);
+    //}
+    //else
+    //{
+    //    UIData->currFolderIndex--;
+    //}
 }
 
-void stepFolderPrevious(MusicBoxUI* UIData)
+
+void stepFolderPrevious(MBData* data)
 {
-    UIData->currFolderIndex--;
-    if(UIData->currFolderIndex >= 0)
-    {
-        strcpy(UIData->initFolder, UIData->mainFolder);
-        gtk_entry_set_text(GTK_ENTRY(UIData->folderName), UIData->folderNames[UIData->currFolderIndex]);
-        strcat(UIData->initFolder, UIData->folderNames[UIData->currFolderIndex]);
-
-        populateList(UIData);
-    }
-    else
-    {
-        UIData->currFolderIndex = 0;
-    }
+    //UIData->currFolderIndex--;
+    //if(UIData->currFolderIndex >= 0)
+    //{
+    //    strcpy(UIData->initFolder, UIData->mainFolder);
+    //    gtk_entry_set_text(GTK_ENTRY(UIData->folderName), UIData->folderNames[UIData->currFolderIndex]);
+    //    strcat(UIData->initFolder, UIData->folderNames[UIData->currFolderIndex]);
+    //
+    //    populateList(UIData);
+    //}
+    //else
+    //{
+    //    UIData->currFolderIndex = 0;
+    //}
 }
 
-void stepSoundNext(MusicBoxUI* UIData)
+
+void stepSoundNext(MBData* data)
 {   
-    UIData->currSongIndex++;
-    if(UIData->currSongIndex <= UIData->nrOfSongs)
-    {
-        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(UIData->songSelection), &UIData->actIter[UIData->currSongIndex]);
-
-        gchar *value;
-        gtk_tree_model_get(GTK_TREE_MODEL(UIData->lsSongs), &UIData->actIter[UIData->currSongIndex], 0, &value, -1);
-
-        strcpy(UIData->musicPath, value);
-    }
-    else
-    {
-        UIData->currSongIndex--;
-    }
+    //UIData->currSongIndex++;
+    //if(UIData->currSongIndex <= UIData->nrOfSongs)
+    //{
+    //    gtk_tree_selection_select_iter(GTK_TREE_SELECTION(UIData->songSelection), &UIData->actIter[UIData->currSongIndex]);
+    //
+    //    gchar *value;
+    //    gtk_tree_model_get(GTK_TREE_MODEL(UIData->lsSongs), &UIData->actIter[UIData->currSongIndex], 0, &value, -1);
+    //
+    //    strcpy(UIData->musicPath, value);
+    //}
+    //else
+    //{
+    //    UIData->currSongIndex--;
+    //}
 }
 
-void stepSoundPrevious(MusicBoxUI* UIData)
+
+void stepSoundPrevious(MBData* data)
 {   
-    UIData->currSongIndex--;
-    if(UIData->currSongIndex >= 0)
-    {
-        gtk_tree_selection_select_iter(GTK_TREE_SELECTION(UIData->songSelection), &UIData->actIter[UIData->currSongIndex]);
-
-        gchar *value;
-        gtk_tree_model_get(GTK_TREE_MODEL(UIData->lsSongs), &UIData->actIter[UIData->currSongIndex], 0, &value, -1);
-
-        strcpy(UIData->musicPath, value);
-    }
-    else
-    {
-        UIData->currSongIndex = 0;
-    }
+    //UIData->currSongIndex--;
+    //if(UIData->currSongIndex >= 0)
+    //{
+    //    gtk_tree_selection_select_iter(GTK_TREE_SELECTION(UIData->songSelection), &UIData->actIter[UIData->currSongIndex]);
+    //
+    //    gchar *value;
+    //    gtk_tree_model_get(GTK_TREE_MODEL(UIData->lsSongs), &UIData->actIter[UIData->currSongIndex], 0, &value, -1);
+    //
+    //    strcpy(UIData->musicPath, value);
+    //}
+    //else
+    //{
+    //    UIData->currSongIndex = 0;
+    //}
 }
 
-void* musicPlayer(void *entryPath)
+
+void* musicPlayer(MBData* data)
 {
     //puts("Music initialization");
     char musicTitle[255];
     initMusic();
     
-    while(run)
+    while(data->stop)
     {
-        if(nrOfElements(&playlist) == 0)
+        if(g_queue_is_empty(data->playQueue))
         {
-            sleep(1);
+            g_usleep(200*1000);
         }
         else
-        {   
-            strcpy(musicTitle, dequeue(&playlist));
-            
-            //#ifdef _WIN32
-            //gtk_entry_set_text(GTK_ENTRY(entryPath), strrchr(musicTitle, '\\') + 1);
-            //#elif __linux__
-            //gtk_entry_set_text(GTK_ENTRY(entryPath), strrchr(musicTitle, '/') + 1);
-            //#endif
-            
-            playMusic(musicTitle);
+        {
+            playMusic((char*)g_queue_pop_head(data->playQueue));
         }
         
     }
@@ -227,57 +257,44 @@ void* musicPlayer(void *entryPath)
     closeMusic();
 }
 
-void* gpioHandling(MusicBoxUI* UIData)
+
+void* gpioHandling(MBData* data)
 {
-    int addButton = atoi(readKey(UIData->configINI, "Default", "AddButton"));
-    int nextFolder = atoi(readKey(UIData->configINI, "Default", "NextFolder"));
-    int prevFolder = atoi(readKey(UIData->configINI, "Default", "PreviousFolder"));
-    int nextSong = atoi(readKey(UIData->configINI, "Default", "NextSong"));
-    int prevSong = atoi(readKey(UIData->configINI, "Default", "PreviousSong"));
-
-    puts("Start, polling");
-    //struct gpiohandle_request req;
-    refStruct req;
-    int ctrlPINS[5] = {addButton, nextFolder, prevFolder, nextSong, prevSong};
-    int i;
-
-    initGPIO(&req, ctrlPINS, 5, INPUT);
-
-    while(run)
+    while(data->stop)
     {
-        switch(detectButtonAction(&req, 200))
+        switch(detectButtonAction(data->gpio, 200))
         {
             case 0b00001:     //addMusic2Playlist
             {
-                addMusic2Playlist(UIData);
+                addMusic2Playlist(data);
                 //G_CALLBACK(addMusic2Playlist);
                 break;
             }
 
             case 0b00010:     //stepFolderNext
             {
-                stepFolderNext(UIData);
+                stepFolderNext(data);
                 //G_CALLBACK(stepFolderNext);
                 break;
             }
 
             case 0b00100:     //stepFolderPrevious
             {
-                stepFolderPrevious(UIData);
+                stepFolderPrevious(data);
                 //G_CALLBACK(stepFolderPrevious);
                 break;
             }
 
             case 0b01000:     //stepSoundNext
             {
-                stepSoundNext(UIData);
+                stepSoundNext(data);
                 //G_CALLBACK(stepSoundNext);
                 break;
             }
 
             case 0b10000:    //stepSoundPrevious
             {
-                stepSoundPrevious(UIData);
+                stepSoundPrevious(data);
                 //G_CALLBACK(stepSoundPrevious);
                 break;
             }
@@ -293,7 +310,5 @@ void* gpioHandling(MusicBoxUI* UIData)
             }
         }
     }
-
-    closeGPIO(&req);
 }
 

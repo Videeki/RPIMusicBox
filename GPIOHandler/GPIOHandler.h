@@ -40,8 +40,8 @@
 #define ON 1
 #define OFF 0
 
-#define INPUT 0
-#define OUTPUT 1
+#define GPIO_INPUT 0
+#define GPIO_OUTPUT 1
 
 int initGPIO(GPIO* rq, int pins[], int nrOfPins, int direction);
 int writeGPIO(GPIO* rq, int* values);
