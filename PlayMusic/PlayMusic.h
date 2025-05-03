@@ -9,22 +9,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-	#include <windows.h>
-    #include <mmsystem.h>
+#include <ao/ao.h>
+#include <mpg123.h>
+#define BITS 8
 
-#elif __linux__
-	#include <ao/ao.h>
-    #include <mpg123/mpg123.h>
-    #define BITS 8
-
-#else
-    printf("Sorry, the system are not implemented yet... :'(\n")
-
-#endif
 
 int initMusic();
-int playMusic(char *path);
+int playMusic(const char *path);
 int closeMusic();
 
 #endif  /* PLAYMUSIC_H */

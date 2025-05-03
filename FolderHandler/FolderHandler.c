@@ -1,5 +1,4 @@
 #include "FolderHandler.h"
-#include "debugmalloc.h"
 
 //gcc -c .\FolderHandler.c -o .\bin\FolderHandler.o -IFolderHandler -\FolderHandler.h "-IC:/msys64/mingw64/include/glib-2.0" "-IC:/msys64/mingw64/lib/glib-2.0/include" "-lglib-2.0"
 GString* path_Join(GString* string, ...)

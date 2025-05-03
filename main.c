@@ -67,21 +67,27 @@ int main(int argc, char* argv[])
     data.stop = FALSE;
     printf("Get musicFolderPath\n");
 
+    error = NULL;
+    data.musicFolderPath = NULL;
     data.musicFolderPath = g_string_new(g_key_file_get_string(key_file, "Default", "MusicFolder", &error));
-    debugmalloc_dump();
+    
     printf("Get music folders\n");
     data.musicFolders = NULL;
     data.musicFolders = listFolderElements(data.musicFolders, data.musicFolderPath->str, NULL);
-    debugmalloc_dump();
-
+    
     printf("Init queue\n");
     data.playQueue = g_queue_new();
 
     int ctrlPINS[5];
+    error = NULL;
     ctrlPINS[0] = g_key_file_get_integer(key_file, "Default", "AddButton", &error);
+    error = NULL;
     ctrlPINS[1] = g_key_file_get_integer(key_file, "Default", "NextFolder", &error);
+    error = NULL;
     ctrlPINS[2] = g_key_file_get_integer(key_file, "Default", "PreviousFolder", &error);
+    error = NULL;
     ctrlPINS[3] = g_key_file_get_integer(key_file, "Default", "NextSong", &error);
+    error = NULL;
     ctrlPINS[4] = g_key_file_get_integer(key_file, "Default", "PreviousSong", &error);
 
     printf("Init GPIO\n");
@@ -114,18 +120,19 @@ int main(int argc, char* argv[])
     else
     {
         printf("CLIInit\n");
-        CLIInit(g_key_file_get_string(key_file, "Default", "MusicFolder", &error));
-        debugmalloc_dump();
+        error = NULL;
+        CLIInit(g_key_file_get_string(key_file, "CLI", "Dashboard", &error));
+
+        CLIUpdateTrack("Hello, world!");
+
         g_key_file_free(key_file);
-        debugmalloc_dump();
         data.actFolderPath = g_string_new(g_strdup(data.musicFolderPath->str));
-        data.actFolderPath = path_Join(data.actFolderPath, g_strdup(data.actMusic->str), NULL);
+
+        data.actFolderPath = path_Join(data.actFolderPath, g_strdup((gchar*)data.musicFolders->data), NULL);
+        CLIUpdateAlbum((char*)data.musicFolders->data);
 
         data.actFolderContent = NULL;
         data.actFolderContent = listFolderElements(data.actFolderContent, data.actFolderPath->str, "mp3");
-
-        CLIUpdateTrack("Hello, world!");
-        CLIUpdateAlbum("Darkness");
 
         CLIUpdateTrackList(data.actFolderContent);
 
@@ -133,21 +140,14 @@ int main(int argc, char* argv[])
 
         CLIClose();
     }
-
-    GString* projectFolderPath;
-    GString* musicFolderPath;
-    GList* musicFolders;
-    GString* actFolderPath;
-    GList* actFolderContent;
-    GQueue* playQueue;
     
-    g_string_free(data.projectFolderPath, TRUE);
-    g_string_free(data.musicFolderPath, TRUE);
-    g_string_free(data.actFolderPath, TRUE);
-    g_string_free(data.actMusic, TRUE);
-    g_list_free(data.musicFolders);
-    g_list_free(data.actFolderContent);
-    g_queue_free(data.playQueue);
+    if(data.projectFolderPath)  g_string_free(data.projectFolderPath, TRUE);
+    if(data.musicFolderPath)    g_string_free(data.musicFolderPath, TRUE);
+    if(data.actFolderPath)  g_string_free(data.actFolderPath, TRUE);
+    if(data.actMusic)   g_string_free(data.actMusic, TRUE);
+    if(data.musicFolders)   g_list_free(data.musicFolders);
+    if(data.actFolderContent)    g_list_free(data.actFolderContent);
+    if(data.playQueue)  g_queue_free(data.playQueue);
     closeGPIO(data.gpio);
     return 0;
 }

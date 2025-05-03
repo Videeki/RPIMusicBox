@@ -1,7 +1,7 @@
 #include "CLIHandler.h"
 
 static int loadDashboard(const char* path);
-static void printCharacterType(GList* charList, const char* title, const int x, const int y, const int weight);
+static void printCharacterType(GList* charList, const char* title, const int x, const int y, const int width);
 static GList*  parseChararcterType(GList* charList, const char* charString, const char* separator);
 int strlenUTF8(const char *str);
 
@@ -11,16 +11,16 @@ static int fontHeight = 0;
 static int trackOffsetStartY = 0;
 static int trackOffsetStartX = 0;
 static int trackOffsetEndX = 0;
-static int trackMaxWeight = 0;
+static int trackMaxWidth = 0;
 static int albumOffsetStartY = 0;
 static int albumOffsetStartX = 0;
 static int albumOffsetEndX = 0;
-static int albumMaxWeight = 0;
+static int albumMaxWidth = 0;
 static int listOffsetStartY = 0;
 static int listOffsetStartX = 0;
 static int listOffsetEndX = 0;
 static int listMaxLength = 0;
-static int listMaxWeight = 0;
+static int listMaxWidth = 0;
 
 
 static int loadDashboard(const char* path)
@@ -74,143 +74,158 @@ static int loadDashboardAndChars(const char* const path)
     {
         if(error)
         {
-            g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+            g_printerr("Error (code:%d) loading %s config file: %s\n", error->code, path, error->message);
             g_error_free(error);
         }
         g_key_file_free(key_file);
         return -1;
     }
 
+    error = NULL;
     int height = g_key_file_get_integer(key_file, "Theme", "Height", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section Height key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     fontHeight = g_key_file_get_integer(key_file, "Font", "Height", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Font section Height key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     trackOffsetStartY = g_key_file_get_integer(key_file, "Theme", "TrackOffsetStartY", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section TrackOffsetStartY key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     trackOffsetStartX = g_key_file_get_integer(key_file, "Theme", "TrackOffsetStartX", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section TrackOffsetStartX key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     trackOffsetEndX = g_key_file_get_integer(key_file, "Theme", "TrackOffsetEndX", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section TrackOffsetEndX key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
-    trackMaxWeight = g_key_file_get_integer(key_file, "Theme", "TrackMaxWeight", &error);
+    error = NULL;
+    trackMaxWidth = g_key_file_get_integer(key_file, "Theme", "TrackMaxWidth", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section TrackMaxWidth key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     albumOffsetStartY = g_key_file_get_integer(key_file, "Theme", "AlbumOffsetStartY", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section AlbumOffsetStartY key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     albumOffsetStartX = g_key_file_get_integer(key_file, "Theme", "AlbumOffsetStartX", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section AlbumOffsetStartX key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     albumOffsetEndX = g_key_file_get_integer(key_file, "Theme", "AlbumOffsetEndX", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section AlbumOffsetEndX key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
-    albumMaxWeight = g_key_file_get_integer(key_file, "Theme", "AlbumMaxWeight", &error);
+    error = NULL;
+    albumMaxWidth = g_key_file_get_integer(key_file, "Theme", "AlbumMaxWidth", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section AlbumMaxWidth key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     listOffsetStartY = g_key_file_get_integer(key_file, "Theme", "ListOffsetStartY", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section ListOffsetStartY key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     listOffsetStartX = g_key_file_get_integer(key_file, "Theme", "ListOffsetStartX", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section ListOffsetStartX key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     listOffsetEndX = g_key_file_get_integer(key_file, "Theme", "ListOffsetEndX", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section ListOffsetEndX key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
+    error = NULL;
     listMaxLength = g_key_file_get_integer(key_file, "Theme", "ListMaxLength", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section ListMaxLength key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
     }
 
-    listMaxWeight = g_key_file_get_integer(key_file, "Theme", "ListMaxWeight", &error);
+    error = NULL;
+    listMaxWidth = g_key_file_get_integer(key_file, "Theme", "ListMaxWidth", &error);
     if(error)
     {
-        g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+        g_printerr("Error (code:%d) loading Theme section ListMaxWidth key: %s\n", error->code, error->message);
         g_error_free(error);
         g_key_file_free(key_file);
         return -2;
@@ -224,10 +239,11 @@ static int loadDashboardAndChars(const char* const path)
     {
         sprintf(line, "Line%04d", i);
         //printf("%s\n", g_key_file_get_string(key_file, "Theme", line, &error));
+        error = NULL;
         gchar* lineContent = g_key_file_get_string(key_file, "Theme", line, &error);
         if(error)
         {
-            g_printerr("Error (code:%d) loading config file: %s\n", error->code, error->message);
+            g_printerr("Error (code:%d) loading Theme section %s key: %s\n", error->code, line, error->message);
             g_error_free(error);
             g_key_file_free(key_file);
             return -3;
@@ -235,13 +251,21 @@ static int loadDashboardAndChars(const char* const path)
         printf("%s\n", lineContent);
     }
     
+    error = NULL;
     charList = parseChararcterType(charList, g_key_file_get_string(key_file, "Font", "ASCIIart", &error), g_key_file_get_string(key_file, "Font", "Separator", &error));
+    if(error)
+    {
+        g_printerr("Error (code:%d) loading Font section ASCIIart key: %s\n", error->code, error->message);
+        g_error_free(error);
+        g_key_file_free(key_file);
+        return -2;
+    }
 
     return 0;
 }
 
 
-int CLIInit(const char* const path)
+int CLIInit(const char* path)
 {
     mainloopStop = FALSE;
     return loadDashboardAndChars(path);
@@ -256,29 +280,29 @@ int CLIClose()
 
 void CLIUpdateAlbum(const char* title)
 {
-    printCharacterType(charList, title, albumOffsetStartX, albumOffsetStartY, albumMaxWeight);
+    printCharacterType(charList, title, albumOffsetStartX, albumOffsetStartY, albumMaxWidth);
 }
 
 
 void CLIUpdateTrack(const char* title)
 {
-    printCharacterType(charList, title, trackOffsetStartX, trackOffsetStartY, trackMaxWeight);
+    printCharacterType(charList, title, trackOffsetStartX, trackOffsetStartY, trackMaxWidth);
 }
 
 
 void CLIUpdateTrackList(GList* trackList)
 {
-    char substring[listMaxWeight];
-    memset(substring, ' ', listMaxWeight);
-    substring[listMaxWeight] = '\0';
+    char substring[listMaxWidth];
+    memset(substring, ' ', listMaxWidth);
+    substring[listMaxWidth] = '\0';
 
     for(int i = 0; i < listMaxLength; i++)
     {
         //printf(JUMP2POS((LIST_OFFSET_START_Y + i), LIST_OFFSET_START_X));
-        printf("\e[%d;%dH", (listOffsetStartY + i), listOffsetStartY);
+        printf("\e[%d;%dH", (listOffsetStartY + i), listOffsetStartX);
         
         GList* element = g_list_nth(trackList, i);
-        strncpy(substring, element->data, listMaxWeight);
+        strncpy(substring, element->data, listMaxWidth);
 
         //if(i == 0) printf(DESIGN(BF_WHITE, BG_YELLOW, BOLD));
         if(i == 0) printf("\e[%d;%d;%d;m", BF_WHITE, BG_MAGENTA, BOLD);
@@ -290,8 +314,8 @@ void CLIUpdateTrackList(GList* trackList)
 
 void CLIUpdateActiveTrack(GList* trackList, const int actTrack, const int prevTrack)
 {
-    char substring[listMaxWeight];
-    for(int i = 0; i < listMaxWeight; i++)
+    char substring[listMaxWidth];
+    for(int i = 0; i < listMaxWidth; i++)
     {
         substring[i] = ' ';
     }
@@ -301,9 +325,9 @@ void CLIUpdateActiveTrack(GList* trackList, const int actTrack, const int prevTr
         printf("\033[%d;%dH", listOffsetStartY + prevTrack, listOffsetStartX);
         GList* prevElement = g_list_nth(trackList, prevTrack);
         int prevElemLen = strlen(prevElement->data);
-        if(prevElemLen > listMaxWeight)
+        if(prevElemLen > listMaxWidth)
         {
-            strncpy(substring, prevElement->data, listMaxWeight);
+            strncpy(substring, prevElement->data, listMaxWidth);
         }
         else
         {
@@ -315,9 +339,9 @@ void CLIUpdateActiveTrack(GList* trackList, const int actTrack, const int prevTr
         printf("\033[%d;%dH", listOffsetStartY + actTrack, listOffsetStartX);
         GList* actElement = g_list_nth(trackList, actTrack);
         int actElemLen = strlen(actElement->data);
-        if(actElemLen > listMaxWeight)
+        if(actElemLen > listMaxWidth)
         {
-            strncpy(substring, actElement->data, listMaxWeight);
+            strncpy(substring, actElement->data, listMaxWidth);
         }
         else
         {
@@ -331,9 +355,9 @@ void CLIUpdateActiveTrack(GList* trackList, const int actTrack, const int prevTr
         printf("\033[%d;%dH", listOffsetStartY + actTrack, listOffsetStartX);
         GList* actElement = g_list_nth(trackList, actTrack);
         int actElemLen = strlen(actElement->data);
-        if(actElemLen > listMaxWeight)
+        if(actElemLen > listMaxWidth)
         {
-            strncpy(substring, actElement->data, listMaxWeight);    
+            strncpy(substring, actElement->data, listMaxWidth);    
         }
         else
         {
@@ -344,9 +368,9 @@ void CLIUpdateActiveTrack(GList* trackList, const int actTrack, const int prevTr
         printf("\033[%d;%dH", listOffsetStartY + prevTrack, listOffsetStartX);
         GList* prevElement = g_list_nth(trackList, prevTrack);
         int prevElemLen = strlen(prevElement->data);
-        if(prevElemLen > listMaxWeight)
+        if(prevElemLen > listMaxWidth)
         {
-            strncpy(substring, prevElement->data, listMaxWeight);
+            strncpy(substring, prevElement->data, listMaxWidth);
         }
         else
         {
@@ -397,11 +421,11 @@ static GList* parseChararcterType(GList* charList, const char* charString, const
 }
 
 
-static void printCharacterType(GList* charList, const char* title, const int x, const int y, const int weight)
+static void printCharacterType(GList* charList, const char* title, const int x, const int y, const int width)
 {
     for(int i = 0; i < fontHeight; i++)
     {
-        char printedline[weight];
+        char printedline[width];
         printedline[0] = '\0';
 
         //printf(JUMP2POS(y+i, x));   //Position the cursor
@@ -413,14 +437,14 @@ static void printCharacterType(GList* charList, const char* title, const int x, 
             if(element != NULL)
             {          	
                 int codelen = strlen((char*)element->data);
-                if((strlen(printedline) + codelen) < weight)
+                if((strlen(printedline) + codelen) < width)
                 {
                     strcat(printedline, (char*)element->data);
                 }
             }
             else
             {
-                if((strlen(printedline) + 3) < weight)
+                if((strlen(printedline) + 3) < width)
                 {
                     strcat(printedline, "   ");
                 }
